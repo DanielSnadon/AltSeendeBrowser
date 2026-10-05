@@ -1,4 +1,15 @@
 const iconPaths = {
+  audio: "M4 9h4l5-5v16l-5-5H4zM17 8q5 4 0 8",
+  muted: "M4 9h4l5-5v16l-5-5H4zM17 9l5 6M17 15l5-6",
+  bookmarks: "M6 3h12v19l-6-4-6 4z",
+  find: "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14M15 15l6 6",
+  zoom: "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14M15 15l6 6M6 10h8M10 6v8",
+  fullscreen: "M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6",
+  pdf: "M6 2h8l5 5v15H6zM14 2v6h5M9 12h7M9 16h7",
+  print: "M7 8V3h10v5M5 18H3V8h18v10h-2M7 14h10v8H7zM17 11h1",
+  copyLink:
+    "M10 14l4-4M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0",
+
   back: "M15 5l-7 7 7 7",
   forward: "M9 5l7 7-7 7",
   reload: "M20 8a8 8 0 1 0 0 8M20 3v5h-5",

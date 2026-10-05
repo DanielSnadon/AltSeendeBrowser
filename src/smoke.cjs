@@ -36,7 +36,7 @@ module.exports = async ({
       ? app.getPath("userData")
       : path.join(__dirname, "../docs");
     fs.mkdirSync(outputDir, { recursive: true });
-    await delay(350);
+    await delay(650);
     fs.writeFileSync(
       path.join(outputDir, "preview.png"),
       (await win.webContents.capturePage()).toPNG(),
@@ -147,6 +147,67 @@ module.exports = async ({
     await until(() => fs.existsSync(imgPath), "Image download failed");
     await normal.cookies.set({ url, name: "regular", value: "yes" });
     assert.equal((await privateSession.cookies.get({ url })).length, 0);
+    await command("volume", { id: t.id, volume: 0.35 });
+    await until(
+      async () =>
+        Math.abs(
+          (await t.view.webContents.executeJavaScript(
+            "document.querySelector('video').volume",
+          )) - 0.35,
+        ) < 0.001,
+      "Tab volume not applied",
+    );
+    await t.view.webContents.executeJavaScript(
+      `{ const f=document.createElement('iframe'); f.srcdoc='<video></video>';document.body.append(f); }`,
+    );
+    await until(async () => {
+      const frame = t.view.webContents.mainFrame.frames.find(
+        (f) => f.url === "about:srcdoc",
+      );
+      return (
+        frame &&
+        Math.abs(
+          (await frame.executeJavaScript(
+            "document.querySelector('video').volume",
+          )) - 0.35,
+        ) < 0.001
+      );
+    }, "Iframe volume not applied");
+    await t.view.webContents.executeJavaScript(
+      "document.body.append(document.createElement('audio'))",
+    );
+    await until(
+      async () =>
+        Math.abs(
+          (await t.view.webContents.executeJavaScript(
+            "document.querySelector('audio').volume",
+          )) - 0.35,
+        ) < 0.001,
+      "Dynamic media volume not applied",
+    );
+    await command("volume", { id: t.id, muted: true });
+    assert.equal(t.view.webContents.isAudioMuted(), true);
+    await command("volume", { id: t.id, muted: false });
+    assert.equal(t.view.webContents.isAudioMuted(), false);
+    await command("zoom", 1.2);
+    assert.ok(Math.abs(t.view.webContents.getZoomFactor() - 1.2) < 0.01);
+    await command("zoom", 1);
+    const found = new Promise((resolve) =>
+      t.view.webContents.once("found-in-page", (_e, r) => resolve(r)),
+    );
+    await command("find", { text: "Research" });
+    const result = await Promise.race([
+      found,
+      delay(5000).then(() => {
+        throw Error("Find request timed out");
+      }),
+    ]);
+    assert.ok(result.matches > 0);
+    await command("find", { text: "" });
+    await command("bookmarkAdd");
+    assert.ok(state().settings.bookmarks.some((b) => b.url === t.url));
+    const pdf = await t.view.webContents.printToPDF({});
+    assert.equal(pdf.subarray(0, 4).toString(), "%PDF");
     const second = newTab(url + "?second"),
       third = newTab(url + "?third");
     await command("group", {
@@ -158,6 +219,18 @@ module.exports = async ({
     assert.equal(state().split.length, 3);
     for (const id of state().split)
       assert.equal(tabs.get(id).view.getVisible(), true);
+    await until(
+      () => !second.view.webContents.isLoading(),
+      "Second page did not load",
+    );
+    assert.equal(
+      await second.view.webContents.executeJavaScript(
+        "document.querySelector('video').volume",
+      ),
+      1,
+    );
+    await command("volume", { id: second.id, volume: 0.7 });
+    assert.equal(state().tabs.find((x) => x.id === t.id).volume, 0.35);
     await command("activate", second.id);
     assert.equal(state().active, second.id);
     assert.equal(state().split.length, 3);
@@ -168,6 +241,23 @@ module.exports = async ({
     );
     await command("activate", second.id);
     await delay(250);
+    const extra = [
+      newTab(url + "?four"),
+      newTab(url + "?five"),
+      newTab(url + "?six"),
+    ];
+    await until(
+      () => extra.every((x) => !x.view.webContents.isLoading()),
+      "Extra split pages did not load",
+    );
+    await command("split", [
+      t.id,
+      second.id,
+      third.id,
+      ...extra.map((x) => x.id),
+    ]);
+    assert.equal(state().panes.length, 6);
+    await delay(300);
     const shellImage = (await win.webContents.capturePage()).toDataURL();
     const captures = [];
     for (const p of state().panes)
@@ -222,6 +312,40 @@ module.exports = async ({
     );
     await command("presetOpen", preset.id);
     assert.equal(state().split.length, 2);
+    await win.webContents.executeJavaScript(
+      "document.querySelector('#tools button[title=\"Multi-search\"]').click()",
+    );
+    await until(
+      async () =>
+        await win.webContents.executeJavaScript(
+          "document.querySelector('#panel-body [name=text]')!==null",
+        ),
+      "Search form did not open",
+    );
+    const countBeforeSearch = tabs.size;
+    await win.webContents.executeJavaScript(
+      "document.querySelector('#panel-body [name=text]').value='precise query';document.querySelector('#panel-body form').requestSubmit()",
+    );
+    await until(
+      () => state().split.length === 6 && tabs.size === countBeforeSearch + 6,
+      "Advanced search did not open six panes",
+    );
+    const resultTabs = state().tabs.filter((x) => state().split.includes(x.id));
+    assert.equal(
+      new Set(resultTabs.map((x) => new URL(x.url).hostname)).size,
+      6,
+    );
+    assert.equal(new Set(resultTabs.map((x) => x.group)).size, 1);
+    for (const item of resultTabs) closeTab(item.id);
+    await command("settings", { motion: false });
+    await delay(100);
+    assert.equal(
+      await win.webContents.executeJavaScript(
+        "document.body.classList.contains('no-motion')",
+      ),
+      true,
+    );
+    await command("settings", { motion: true });
     await command("settings", {
       tools: ["speed", "downloads", "screenshot"],
       homeTitle: "A focused start",
@@ -249,7 +373,7 @@ module.exports = async ({
     );
     await assert.rejects(() => command("navigate", "file:///etc/passwd"));
     console.log(
-      "SMOKE PASS: real pages, isolation, network/cosmetic blocker on/off, address, reader, video/image download, screenshot, split focus, private cookies, session restore, groups, presets, toolbar, settings",
+      "SMOKE PASS: real pages, isolation, network/cosmetic blocker on/off, address, reader, video/image download, screenshot, split focus, private cookies, session restore, groups, presets, toolbar, six-engine advanced search, independent and iframe audio, zoom, find, bookmarks, PDF, motion settings",
     );
     clearTimeout(timer);
     server.close();

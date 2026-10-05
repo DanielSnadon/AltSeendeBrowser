@@ -1,6 +1,6 @@
 # AltSeende Browser
 
-A minimal, English-language Chromium browser for research. **Version 0.2.0** uses Electron 44 with sandboxed web pages, bottom tabs and an eye identity.
+A minimal, English-language Chromium browser for research. **Version 0.3.0** uses Electron 44 with sandboxed web pages, bottom tabs and an eye identity.
 
 ![Home](docs/preview.png)
 
@@ -9,10 +9,37 @@ A minimal, English-language Chromium browser for research. **Version 0.2.0** use
 Open [Releases](https://github.com/DanielSnadon/AltSeendeBrowser/releases) and select a Linux x64 download. The repository is private, so sign into an account with access.
 
 - **Fedora RPM:** open the `.rpm` with the software installer. After installing, launch **AltSeende Browser** from the application menu.
-- **AppImage:** enable executable permission in file properties and run it. If FUSE 2 is missing, use `./AltSeende-0.2.0-x86_64.AppImage --appimage-extract-and-run`.
+- **AppImage:** enable executable permission in file properties and run it. If FUSE 2 is missing, use `./AltSeende-0.3.0-x86_64.AppImage --appimage-extract-and-run`.
 - **Portable archive:** extract the full `.tar.gz` and run `altseende-browser` inside. Keep the bundled files together.
 
 Node.js is not required for these downloads. These packages target Linux x64. Windows packaging is configured (`npm run dist:win`) but is not part of the Linux release and has not been tested on Windows.
+
+## What changed in 0.3
+
+- Brighter graphite/cyan interface, detailed gradients, restrained grid accents and icon-only browser controls.
+- Smooth interaction and entrance animations. Settings can disable motion; the OS reduced-motion preference is respected.
+- The primary advanced-search action always opens **all six engines in one 3 × 2 window**: Google, Yandex, DuckDuckGo, Bing, Brave and Yahoo. A secondary checkmark action searches only the checked engines. The simple home comparison remains a three-engine shortcut.
+- A separate volume slider and mute for every tab, reachable from the tab's speaker icon or toolbar mixer. Volume/mute survive restore for regular tabs. The slider scales HTML audio/video players, including dynamically added players and iframe players. Web Audio synthesis is not amplitude-scaled; native tab mute silences it along with all other tab audio.
+- New configurable toolbar tools: audio mixer, bookmarks, find on page (Ctrl+F), page zoom, fullscreen (F11), PDF export, print and copy URL. Settings still exposes tools hidden from the toolbar.
+- Existing custom accents and toolbar choices migrate without resetting them; the old default accent changes to cyan.
+
+### Remove or update on Fedora
+
+To uninstall the installed RPM:
+
+```sh
+sudo dnf remove altseende-browser
+```
+
+This removes the installed application; profile data, source code and downloaded installer files remain. AppImage/portable copies are separate files, not RPM installations.
+
+To install or update from a downloaded RPM in the current directory:
+
+```sh
+sudo dnf install ./AltSeende-0.3.0-x86_64.rpm
+```
+
+No need to uninstall before upgrading.
 
 ## What changed in 0.2
 
@@ -31,7 +58,7 @@ Node.js is not required for these downloads. These packages target Linux x64. Wi
 
 ## Existing features and boundaries
 
-Search engines: Google, Yandex, DuckDuckGo, Bing and Brave. Advanced query builder includes exact phrases, exclusions, domain, file type and date. Provider support for search operators varies.
+Search engines: Google, Yandex, DuckDuckGo, Bing, Brave and Yahoo. Advanced query builder includes exact phrases, exclusions, domain, file type and date. Provider support for search operators varies.
 
 Reader supports selected/page/pasted text, voice and rate controls. Actual speech requires installed system voices. Video downloads find direct MP4, WebM, OGG and MOV URLs in the top-level document; DRM, blob URLs and HLS/DASH extraction are not supported.
 

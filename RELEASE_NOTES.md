@@ -1,10 +1,11 @@
-AltSeende Browser 0.2 adds split views, tab groups, session restore, an icon toolbar, configurable home spaces, network/cosmetic ad blocking, screenshots, image downloads and a manual download speed test.
+AltSeende Browser 0.3 introduces a luminous graphite/cyan design, smooth configurable animations, six-engine advanced search in a 3 × 2 split, and per-tab volume/mute with persistence.
 
-Linux x64 downloads:
-- `.rpm`: install with Fedora's software installer, then open AltSeende from the application menu.
-- `.AppImage`: mark executable in file properties and run. Requires FUSE 2; if unavailable, run with `--appimage-extract-and-run`.
-- `.tar.gz`: extract the entire folder and run `altseende-browser`.
+New toolbar tools: audio mixer, bookmarks, find on page, zoom, fullscreen, PDF export, printing and copy link. Tools can be reordered or hidden.
 
-No separate Node.js installation is needed. Keep the Chromium sandbox enabled.
+Linux x64:
+- RPM: install or update with `sudo dnf install ./AltSeende-0.3.0-x86_64.rpm`, then launch from the application menu.
+- AppImage: mark executable and run; if FUSE 2 is unavailable, use `--appimage-extract-and-run`.
+- tar.gz: extract everything and run `altseende-browser`.
+- Uninstall RPM: `sudo dnf remove altseende-browser`. Profile data and downloaded files remain.
 
-Private tabs are excluded from restore. The blocker uses bundled EasyList, EasyPrivacy and RU AdList with manual updates in Settings; no blocker guarantees every ad is removed. Chrome extension support remains partial and video downloads currently require direct media URLs. The browser is an early version without automatic updates or a security audit.
+Volume sliders scale HTML audio/video, including frames and new players; native mute silences all tab sound. Web Audio synthesis is not amplitude-scaled. Private tabs are never restored. Existing limitations remain: partial unpacked Chrome extension support, direct-media video downloads, manual blocker updates and no automatic app updater.

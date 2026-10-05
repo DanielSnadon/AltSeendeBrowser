@@ -43,9 +43,20 @@ if command -v update-desktop-database >/dev/null; then update-desktop-database -
 `;
 const specPath = path.join(top, "SPECS/altseende.spec");
 fs.writeFileSync(specPath, spec);
-execFileSync("rpmbuild", ["-bb", "--define", `_topdir ${top}`, specPath], {
-  stdio: "inherit",
-});
+execFileSync(
+  "rpmbuild",
+  [
+    "-bb",
+    "--define",
+    "_binary_payload w3.zstdio",
+    "--define",
+    `_topdir ${top}`,
+    specPath,
+  ],
+  {
+    stdio: "inherit",
+  },
+);
 const rpm = path.join(
   top,
   `RPMS/x86_64/altseende-browser-${pkg.version}-1.x86_64.rpm`,

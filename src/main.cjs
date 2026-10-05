@@ -7,6 +7,7 @@ const {
   dialog,
   Menu,
   shell,
+  clipboard,
 } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -14,6 +15,7 @@ const { pathToFileURL } = require("node:url");
 const { parse } = require("tldts-experimental");
 const { engines, defaults, query, searchURL, address } = require("./core.cjs");
 const { loadFilters, updateFilters, Request } = require("./filters.cjs");
+const audioScript = require("./audio-script.cjs");
 const { snapshot, paneBounds } = require("./workspaces.cjs");
 app.setName("AltSeende Browser");
 app.setDesktopName("altseende-browser.desktop");
@@ -90,6 +92,9 @@ function state() {
       private: t.private,
       group: t.group,
       error: t.error,
+      volume: t.volume,
+      muted: t.muted,
+      zoom: t.view.webContents.getZoomFactor(),
     })),
     active,
     overlay,
@@ -221,6 +226,17 @@ function activate(id, focus = false) {
 function shortcut(wc) {
   wc.on("before-input-event", (e, i) => {
     if (i.type !== "keyDown") return;
+    if (i.key === "F11") {
+      e.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+      return;
+    }
+    if (i.control && !i.shift && i.key.toLowerCase() === "f") {
+      e.preventDefault();
+      win.webContents.focus();
+      win.webContents.send("shortcut", "find");
+      return;
+    }
     const match = Object.entries(settings.shortcuts).find(([, v]) => {
       const p = v.toLowerCase().split("+");
       return (
@@ -268,8 +284,17 @@ function newTab(url = "", priv = false, options = {}) {
     group: options.group || "",
     private: priv,
     error: "",
+    volume: Number.isFinite(options.volume)
+      ? Math.max(0, Math.min(1, options.volume))
+      : 1,
+    muted: !!options.muted,
   };
   tabs.set(id, t);
+  wc.setAudioMuted(t.muted || t.volume === 0);
+  wc.on("did-frame-finish-load", () => applyVolume(t));
+  wc.on("found-in-page", (_event, result) => {
+    if (id === active) win.webContents.send("found", result);
+  });
   win.contentView.addChildView(view);
   if (!options.background) {
     active = id;
@@ -491,10 +516,103 @@ ipcMain.handle("cosmetic-filters", (event, data) => {
     }).styles || ""
   );
 });
+function applyVolume(t) {
+  const wc = t.view.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  wc.setAudioMuted(t.muted || t.volume === 0);
+  for (const frame of wc.mainFrame.framesInSubtree)
+    frame.executeJavaScript(audioScript(t.volume)).catch(() => {});
+}
+async function savePDF() {
+  if (!current()?.url) throw Error("Open a page first.");
+  const wc = current().view.webContents;
+  const result = await dialog.showSaveDialog(win, {
+    title: "Save page as PDF",
+    defaultPath: path.join(app.getPath("documents"), "AltSeende-page.pdf"),
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
+  });
+  if (result.canceled || !result.filePath) return "PDF cancelled.";
+  const bytes = await wc.printToPDF({ printBackground: true });
+  fs.writeFileSync(result.filePath, bytes);
+  return "PDF saved.";
+}
 async function command(action, data) {
   switch (action) {
     case "state":
       return state();
+    case "volume": {
+      const t = tabs.get(data.id);
+      if (!t) throw Error("Tab not found.");
+      if (typeof data.volume === "number" && Number.isFinite(data.volume))
+        t.volume = Math.max(0, Math.min(1, data.volume));
+      if (typeof data.muted === "boolean") t.muted = data.muted;
+      applyVolume(t);
+      publish();
+      break;
+    }
+    case "zoom": {
+      if (!current()?.url) throw Error("Open a page first.");
+      const value = Number(data);
+      if (!Number.isFinite(value)) throw Error("Invalid zoom.");
+      current().view.webContents.setZoomFactor(
+        Math.max(0.5, Math.min(2, value)),
+      );
+      publish();
+      break;
+    }
+    case "find": {
+      if (!current()?.url) throw Error("Open a page first.");
+      const text = String(data.text || "").slice(0, 1000);
+      if (text)
+        current().view.webContents.findInPage(text, {
+          forward: data.forward !== false,
+          // Electron calls the initial-session flag findNext.
+          findNext: !data.next,
+        });
+      else current().view.webContents.stopFindInPage("clearSelection");
+      break;
+    }
+    case "fullscreen":
+      win.setFullScreen(!win.isFullScreen());
+      break;
+    case "copyLink":
+      if (!current()?.url) throw Error("Open a page first.");
+      clipboard.writeText(current().url);
+      return "Page address copied.";
+    case "pdf":
+      return savePDF();
+    case "print": {
+      if (!current()?.url) throw Error("Open a page first.");
+      return new Promise((resolve) =>
+        current().view.webContents.print({}, (success, reason) =>
+          resolve(success ? "Sent to printer." : reason || "Print cancelled."),
+        ),
+      );
+    }
+    case "bookmarkAdd": {
+      const t = current();
+      if (!t?.url) throw Error("Open a page first.");
+      if (!settings.bookmarks.some((b) => b.url === t.url))
+        settings.bookmarks.push({
+          id: "b" + Date.now(),
+          title: t.title,
+          url: t.url,
+        });
+      save();
+      publish();
+      break;
+    }
+    case "bookmarkRemove":
+      settings.bookmarks = settings.bookmarks.filter((b) => b.id !== data);
+      save();
+      publish();
+      break;
+    case "bookmarkOpen": {
+      const b = settings.bookmarks.find((b) => b.id === data);
+      if (b) newTab(b.url);
+      break;
+    }
+
     case "new":
       newTab("", !!data);
       break;
@@ -528,12 +646,14 @@ async function command(action, data) {
     case "search": {
       const q = query(data);
       if (!q) throw Error("Enter a query or search filter.");
-      const selected = data.engines.filter((e) => engines[e]);
+      const selected = data.all
+        ? Object.keys(engines)
+        : [...new Set(data.engines || [])].filter((e) => engines[e]);
       if (!selected.length) throw Error("Choose at least one engine.");
       const priv = current()?.private,
         group = priv ? "" : newGroup(q.slice(0, 40)),
         ids = selected.map((e) => newTab(searchURL(q, e), priv, { group }).id);
-      if (data.split && ids.length > 1) setSplit(ids);
+      if ((data.all || data.split) && ids.length > 1) setSplit(ids);
       break;
     }
     case "group": {
@@ -604,6 +724,7 @@ async function command(action, data) {
         "restoreSession",
         "splitSearch",
         "showPresets",
+        "motion",
       ])
         if (typeof data[k] === "boolean") next[k] = data[k];
       if (engines[data.engine]) next.engine = data.engine;
@@ -625,6 +746,14 @@ async function command(action, data) {
             "groups",
             "home",
             "private",
+            "audio",
+            "bookmarks",
+            "find",
+            "zoom",
+            "fullscreen",
+            "pdf",
+            "print",
+            "copyLink",
           ].includes(t),
         );
       if (data.shortcuts) {
@@ -743,6 +872,8 @@ function restoreSession(saved) {
       title: t.title,
       group: settings.groups.some((g) => g.id === t.group) ? t.group : "",
       background: true,
+      volume: t.volume,
+      muted: t.muted,
     });
     mapping.set(t.id, tab.id);
   }
@@ -763,6 +894,14 @@ app.whenReady().then(async () => {
       shortcuts: { ...settings.shortcuts, ...loaded.shortcuts },
     };
   } catch {}
+  if (settings.designVersion !== 3) {
+    if (settings.accent === "#c5d1bd") settings.accent = defaults.accent;
+    settings.tools = [
+      ...new Set([...settings.tools, "audio", "find", "bookmarks"]),
+    ];
+    settings.designVersion = 3;
+    save();
+  }
   filterState = loadFilters([
     path.join(app.getPath("userData"), "filters"),
     path.join(__dirname, "../assets/filters"),

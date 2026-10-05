@@ -1,4 +1,5 @@
 const engines = {
+  Yahoo: "https://search.yahoo.com/search?p=",
   DuckDuckGo: "https://duckduckgo.com/?q=",
   Google: "https://www.google.com/search?q=",
   Yandex: "https://yandex.com/search/?text=",
@@ -10,7 +11,7 @@ const defaults = {
   trackers: true,
   dnt: true,
   httpsOnly: true,
-  accent: "#c5d1bd",
+  accent: "#74c9ff",
   density: "comfortable",
   font: "mono",
   shortcuts: {
@@ -25,7 +26,16 @@ const defaults = {
   splitSearch: true,
   homeTitle: "Start here.",
   showPresets: true,
-  tools: ["search", "split", "downloads", "screenshot", "speed", "reader"],
+  tools: [
+    "search",
+    "split",
+    "downloads",
+    "screenshot",
+    "audio",
+    "bookmarks",
+    "find",
+    "fullscreen",
+  ],
   presets: [
     {
       id: "research",
@@ -39,6 +49,9 @@ const defaults = {
     },
   ],
   groups: [],
+  bookmarks: [],
+  motion: true,
+  designVersion: 3,
 };
 function query(o) {
   return [

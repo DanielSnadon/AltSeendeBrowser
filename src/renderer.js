@@ -6,7 +6,9 @@ let state,
   renderedActive,
   renderedURL,
   homeKey = "",
-  toolsKey = "";
+  toolsKey = "",
+  seenTabs = new Set(),
+  paneKey = "";
 const toolNames = {
   search: "Multi-search",
   split: "Split view",
@@ -17,6 +19,14 @@ const toolNames = {
   groups: "Tabs & groups",
   home: "Home",
   private: "Private tab",
+  audio: "Tab audio mixer",
+  bookmarks: "Bookmarks",
+  find: "Find on page",
+  zoom: "Page zoom",
+  fullscreen: "Fullscreen",
+  pdf: "Save PDF",
+  print: "Print page",
+  copyLink: "Copy page address",
 };
 const el = (tag, text, cls) => {
   const e = document.createElement(tag);
@@ -85,13 +95,17 @@ function submit(form, title = "Save", name = "save") {
   form.append(b);
 }
 function actionTool(name) {
-  if (name === "screenshot") call("screenshot").then((r) => r && toast(r));
+  if (["screenshot", "pdf", "print", "copyLink"].includes(name))
+    call(name).then((r) => r && toast(r));
+  else if (name === "fullscreen") call("fullscreen");
+  else if (name === "find") openFind();
   else if (name === "home") call("new");
   else if (name === "private") call("new", true);
   else showPanel(name);
 }
 function render(s) {
   state = s;
+  document.body.classList.toggle("no-motion", !s.settings.motion);
   if (!s.overlay && panel) {
     panel = "";
     $("#panel").hidden = true;
@@ -110,7 +124,9 @@ function render(s) {
   $("#home").hidden = !!t?.url || !!panel;
   $("#home-status").textContent = t?.private
     ? "Private session · these tabs will not be restored."
-    : "Your tabs will be here when you return.";
+    : s.settings.restoreSession
+      ? "Your tabs will be here when you return."
+      : "Session restore is off.";
   $("#blocker").classList.toggle("enabled", s.settings.trackers);
   $("#blocker").title =
     `Ad blocker ${s.settings.trackers ? "on" : "off"} · ${s.denied} blocked requests`;
@@ -193,13 +209,24 @@ function render(s) {
       await hidePanel();
       await call("activate", t.id);
     };
+    if (!seenTabs.has(t.id)) box.classList.add("arriving");
+    seenTabs.add(t.id);
     box.append(
       b,
+      button(
+        `Volume · ${Math.round(t.volume * 100)}%${t.muted ? " · muted" : ""}`,
+        () => showAudio(t.id),
+        t.muted || t.volume === 0 ? "muted" : "audio",
+        "tab-audio",
+      ),
       button("Close " + t.title, () => call("close", t.id), "close"),
     );
     $("#tabs").append(box);
   }
   $("#tab-count").textContent = s.tabs.length;
+  const nextPaneKey = s.split.join(",");
+  const changedPanes = paneKey !== nextPaneKey;
+  paneKey = nextPaneKey;
   $("#pane-headers").replaceChildren();
   if (!panel && !s.overlay)
     for (const p of s.panes) {
@@ -214,11 +241,17 @@ function render(s) {
         top: p.y + "px",
         width: p.width + "px",
       });
+      if (changedPanes) h.classList.add("arriving");
       const url = el("span", tab.url, "pane-url");
       url.title = tab.url;
       url.onclick = () => call("activate", p.id);
       h.append(
         url,
+        button(
+          "Tab volume",
+          () => showAudio(tab.id),
+          tab.muted || tab.volume === 0 ? "muted" : "audio",
+        ),
         button(
           "Show only this tab",
           async () => {
@@ -247,7 +280,8 @@ window.alt.onShortcut((a) => {
   if (a === "address") {
     $("#address").focus();
     $("#address").select();
-  } else showPanel("search");
+  } else if (a === "find") openFind();
+  else showPanel("search");
 });
 window.alt.onReader(async (t) => {
   await showPanel("reader");
@@ -276,9 +310,13 @@ async function showPanel(name) {
     groups: "Tabs & groups",
     home: "Your home, your spaces",
     speed: "Connection speed",
+    audio: "Tab audio",
+    bookmarks: "Saved pages",
+    zoom: "Page zoom",
   }[name];
   const body = $("#panel-body");
   body.replaceChildren();
+  animateIn($("#panel"));
   if (name === "search") searchPanel(body);
   else if (name === "settings") settingsPanel(body);
   else if (name === "split" || name === "groups") tabsPanel(body, name);
@@ -286,6 +324,9 @@ async function showPanel(name) {
   else if (name === "reader") readerPanel(body);
   else if (name === "downloads") downloadsPanel(body);
   else if (name === "speed") speedPanel(body);
+  else if (name === "audio") audioPanel(body);
+  else if (name === "bookmarks") bookmarksPanel(body);
+  else if (name === "zoom") zoomPanel(body);
 }
 function searchPanel(body) {
   const form = el("form"),
@@ -305,37 +346,40 @@ function searchPanel(body) {
   form.append(grid);
   const row = el("div", undefined, "engine-list");
   for (const e of state.engines) {
-    const i = checkbox(
-      "engine",
-      ["Google", "Yandex", "DuckDuckGo"].includes(e),
-    );
+    const i = checkbox("engine", true);
     i.value = e;
     row.append(label(e, i, "check"));
   }
   form.append(
     row,
-    label(
-      "Open results side by side",
-      checkbox("split", state.settings.splitSearch),
-      "check",
-    ),
+    label("Open results side by side", checkbox("split", true), "check"),
     note(
       "Selected engines open in one group. Each provider interprets advanced search operators differently.",
     ),
   );
-  submit(form, "Search selected engines", "search");
-  form.onsubmit = async (e) => {
-    e.preventDefault();
+  submit(form, "Search all six engines · 3 × 2", "search");
+  const custom = button(
+    "Search checked engines",
+    () => perform(false),
+    "check",
+  );
+  form.append(custom, el("span", "6 engines · 3 × 2", "search-summary"));
+  async function perform(all) {
     const d = Object.fromEntries(new FormData(form));
     d.engines = [...form.querySelectorAll("[name=engine]:checked")].map(
       (i) => i.value,
     );
-    d.split = form.elements.split.checked;
-    const s = await call("search", d);
-    if (s) {
+    d.all = all;
+    d.split = all || form.elements.split.checked;
+    const result = await call("search", d);
+    if (result) {
       await hidePanel();
-      render(s);
+      render(result);
     }
+  }
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    perform(true);
   };
   body.append(form);
   form.elements.text.focus();
@@ -486,6 +530,7 @@ function settingsPanel(body) {
   grid.append(label("Accent", color));
   form.append(el("h3", "Appearance"), grid, el("h3", "Browsing"));
   for (const [k, text] of [
+    ["motion", "Smooth interface animations"],
     ["restoreSession", "Restore regular tabs and groups at startup"],
     ["splitSearch", "Show multi-search results side by side"],
     ["trackers", "Block ads and trackers"],
@@ -589,6 +634,7 @@ function settingsPanel(body) {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(form));
     for (const k of [
+      "motion",
       "restoreSession",
       "splitSearch",
       "trackers",
@@ -866,6 +912,158 @@ function speedPanel(body) {
     detail = note("");
   body.append(result, run, detail);
 }
+function animateIn(node) {
+  if (
+    state?.settings.motion === false ||
+    matchMedia("(prefers-reduced-motion: reduce)").matches
+  )
+    return;
+  node.animate(
+    [
+      { opacity: 0, transform: "translateY(9px)" },
+      { opacity: 1, transform: "translateY(0)" },
+    ],
+    { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" },
+  );
+}
+async function showAudio(id) {
+  await showPanel("audio");
+  document.querySelector(`[data-volume="${id}"]`)?.focus();
+}
+function audioPanel(body) {
+  body.append(
+    note(
+      "Independent volume for audio/video players. Mute silences all sound in the tab, including Web Audio.",
+    ),
+  );
+  for (const t of state.tabs) {
+    const row = el("div", undefined, "card audio-row"),
+      title = el("div", undefined, "grow");
+    title.append(el("strong", t.title), el("small", t.url || "New tab"));
+    const slider = input("volume", "", Math.round(t.volume * 100));
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "100";
+    slider.step = "1";
+    slider.dataset.volume = t.id;
+    slider.setAttribute("aria-label", "Volume for " + t.title);
+    const output = el("output", slider.value + "%");
+    let muted = t.muted;
+    const mute = button(
+      muted ? "Unmute tab" : "Mute tab",
+      async () => {
+        muted = !muted;
+        const result = await call("volume", { id: t.id, muted });
+        if (result) {
+          mute.replaceChildren(icon(muted ? "muted" : "audio"));
+          mute.title = muted ? "Unmute tab" : "Mute tab";
+          mute.setAttribute("aria-label", mute.title);
+          mute.classList.toggle("active", muted);
+        }
+      },
+      muted ? "muted" : "audio",
+    );
+    mute.classList.toggle("active", muted);
+    slider.oninput = () => {
+      output.textContent = slider.value + "%";
+      call("volume", { id: t.id, volume: Number(slider.value) / 100 });
+    };
+    row.append(title, mute, slider, output);
+    body.append(row);
+  }
+}
+function bookmarksPanel(body) {
+  body.append(
+    button(
+      "Bookmark current page",
+      async () => {
+        if (await call("bookmarkAdd")) showPanel("bookmarks");
+      },
+      "plus",
+      "primary",
+    ),
+  );
+  if (!state.settings.bookmarks.length)
+    body.append(note("Save a page with +."));
+  for (const b of state.settings.bookmarks) {
+    const row = el("div", undefined, "card row"),
+      text = el("div", undefined, "grow");
+    text.append(el("strong", b.title), el("small", b.url));
+    row.append(
+      text,
+      button("Open bookmark", () => call("bookmarkOpen", b.id), "external"),
+      button(
+        "Remove bookmark",
+        async () => {
+          await call("bookmarkRemove", b.id);
+          showPanel("bookmarks");
+        },
+        "trash",
+      ),
+    );
+    body.append(row);
+  }
+}
+function zoomPanel(body) {
+  const t = state.tabs.find((t) => t.id === state.active),
+    range = input("zoom", "", Math.round((t?.zoom || 1) * 100));
+  range.type = "range";
+  range.min = "50";
+  range.max = "200";
+  range.step = "10";
+  range.setAttribute("aria-label", "Page zoom");
+  const value = el("div", range.value + "%", "metric");
+  range.oninput = () => {
+    value.textContent = range.value + "%";
+    call("zoom", Number(range.value) / 100);
+  };
+  body.append(
+    value,
+    range,
+    button(
+      "Reset zoom",
+      () => {
+        range.value = 100;
+        value.textContent = "100%";
+        call("zoom", 1);
+      },
+      "reload",
+    ),
+  );
+}
+async function openFind() {
+  await hidePanel();
+  $("#findbar").hidden = false;
+  $("#address-form").hidden = true;
+  $("#find-text").focus();
+  $("#find-text").select();
+}
+function closeFind() {
+  $("#findbar").hidden = true;
+  $("#address-form").hidden = false;
+  call("find", { text: "" });
+}
+window.alt.onFound((r) => {
+  $("#find-count").textContent = `${r.activeMatchOrdinal || 0}/${r.matches}`;
+});
+$("#findbar").onsubmit = (e) => {
+  e.preventDefault();
+  call("find", { text: $("#find-text").value, next: true });
+};
+$("#find-next").onclick = () =>
+  call("find", { text: $("#find-text").value, next: true });
+$("#find-prev").onclick = () =>
+  call("find", { text: $("#find-text").value, next: true, forward: false });
+$("#find-close").onclick = closeFind;
+$("#find-text").oninput = () =>
+  call("find", { text: $("#find-text").value, next: false });
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    openFind();
+  }
+  if (e.key === "Escape" && !$("#findbar").hidden) closeFind();
+});
 for (const b of document.querySelectorAll("[data-icon]"))
   b.append(icon(b.dataset.icon));
 for (const b of document.querySelectorAll("[data-panel]"))

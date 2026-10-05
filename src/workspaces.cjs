@@ -7,6 +7,8 @@ function snapshot(tabs, active, split, groups) {
       url: /^https?:\/\//.test(t.url) ? t.url : "",
       title: t.title,
       group: t.group || "",
+      volume: t.volume ?? 1,
+      muted: !!t.muted,
     })),
     active: regular.some((t) => t.id === active) ? active : regular.at(-1)?.id,
     split: split.filter((id) => regular.some((t) => t.id === id)),

@@ -51,6 +51,34 @@
           spellcheck="false"
         />
       </form>
+      <form id="findbar" hidden>
+        <input
+          id="find-text"
+          aria-label="Find on page"
+          placeholder="Find on page…"
+        /><span id="find-count">0/0</span
+        ><button
+          type="button"
+          id="find-prev"
+          data-icon="up"
+          title="Previous match"
+          aria-label="Previous match"
+        ></button
+        ><button
+          type="button"
+          id="find-next"
+          data-icon="down"
+          title="Next match"
+          aria-label="Next match"
+        ></button
+        ><button
+          type="button"
+          id="find-close"
+          data-icon="close"
+          title="Close find"
+          aria-label="Close find"
+        ></button>
+      </form>
       <div id="tools"></div>
       <button
         id="settings"
@@ -65,9 +93,7 @@
         <img src="../assets/eye.svg" alt="" /><span>ALTSEENDE</span>
       </div>
       <h1 id="home-title">Start here.</h1>
-      <p class="intro">
-        Search the web. Compare perspectives. Pick up where you left off.
-      </p>
+      <p class="intro">One question. Every perspective.</p>
       <form id="home-search">
         <input
           id="home-query"
@@ -101,7 +127,7 @@
       </section>
       <div class="home-footer">
         <span id="home-status">A quieter corner of the web.</span
-        ><span>0.2</span>
+        ><span>0.3 / CHROMIUM</span>
       </div>
     </main>
     <div id="pane-headers"></div>
