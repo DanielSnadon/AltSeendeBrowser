@@ -1,63 +1,73 @@
 # AltSeende Browser
 
-A black, minimal research browser with bottom tabs and an eye identity. English interface. **0.1.0 alpha**, powered by Electron / Chromium. This is a working first milestone, not a Chromium source fork or a production-hardened browser.
+A minimal, English-language Chromium browser for research. **Version 0.2.0** uses Electron 44 with sandboxed web pages, bottom tabs and an eye identity.
 
-![AltSeende start page](docs/preview.png)
+![Home](docs/preview.png)
 
-## Run
+## Download and run
 
-Node.js 22+ and npm are required for source development.
+Open [Releases](https://github.com/DanielSnadon/AltSeendeBrowser/releases) and select a Linux x64 download. The repository is private, so sign into an account with access.
+
+- **Fedora RPM:** open the `.rpm` with the software installer. After installing, launch **AltSeende Browser** from the application menu.
+- **AppImage:** enable executable permission in file properties and run it. If FUSE 2 is missing, use `./AltSeende-0.2.0-x86_64.AppImage --appimage-extract-and-run`.
+- **Portable archive:** extract the full `.tar.gz` and run `altseende-browser` inside. Keep the bundled files together.
+
+Node.js is not required for these downloads. These packages target Linux x64. Windows packaging is configured (`npm run dist:win`) but is not part of the Linux release and has not been tested on Windows.
+
+## What changed in 0.2
+
+- **Ad blocker:** EasyList, EasyPrivacy and RU AdList, with both network cancellation and cosmetic CSS hiding, including dynamic page elements. Filters are bundled for offline startup; update them manually in Settings. Toggle blocking with the checkbox in Settings; open pages reload to apply the change. No acceptable-ads allowlist.
+- **Split views:** select 2–6 open pages from the split icon. Click a page or its pane address to activate it. Each pane has a full address, focus control and close button. Multi-search opens results in a group and can arrange them side by side.
+- **Minimal chrome:** one icon toolbar with accessible labels and hover hints. The address bar reflects redirects and the active split pane, and updates correctly after navigation.
+- **Configurable tools:** show, hide and reorder multi-search, split view, downloads, screenshots, speed, Reader, groups, home and private-tab controls in Settings. All tools remain accessible from Settings.
+- **Session restore:** regular tab URLs, active tab, groups and split layout are saved atomically and restored. Private tabs are never serialized. Disable restore in Settings to clear the saved session. Scroll position, form contents and back/forward history are not restored.
+- **Tab groups:** create, rename, reassign or dissolve groups through the folder icon at bottom left.
+- **Home spaces:** change the home heading, show/hide preset cards, and create/edit/delete named URL sets. Save currently open regular pages into a preset and reopen them together, optionally side by side. At most six panes are visible; additional preset pages remain normal tabs.
+- **Images:** right-click an image and select **Save image as…** or **Copy image**.
+- **Screenshots:** the camera icon saves the visible viewport of the active page to PNG. In split view it captures the active pane; full-page scrolling screenshots are not implemented.
+- **Connection speed:** the gauge icon runs an explicit 8 MB download estimate against Cloudflare, with request latency. It is not an upload test or continuous network monitor.
+
+![Split view](docs/split-view.png)
+
+## Existing features and boundaries
+
+Search engines: Google, Yandex, DuckDuckGo, Bing and Brave. Advanced query builder includes exact phrases, exclusions, domain, file type and date. Provider support for search operators varies.
+
+Reader supports selected/page/pasted text, voice and rate controls. Actual speech requires installed system voices. Video downloads find direct MP4, WebM, OGG and MOV URLs in the top-level document; DRM, blob URLs and HLS/DASH extraction are not supported.
+
+Experimental unpacked Chrome extensions can be loaded in Settings. Electron supports only part of Chrome's extension API; Chrome Web Store and full Manifest V3 compatibility are not included.
+
+A blocker cannot guarantee every ad disappears. This implementation supports network and CSS filtering; scriptlets and extended procedural selectors are not implemented. Filter updates are manual and can break some pages; disable the blocker for troubleshooting.
+
+This is not an anonymity browser. Sites see your IP. Permissions for camera, microphone, geolocation and notifications remain denied by default; HTTP is upgraded to HTTPS unless disabled. DNT/GPC are signals, not enforcement. Private tabs share an in-memory session until app exit; downloaded files remain on disk. There is no automatic updater, Safe Browsing service, password manager or completed security audit.
+
+## Develop and verify
+
+Requires Node.js **22.12+** (Node 24 recommended) and a graphical Linux desktop.
 
 ```sh
 npm ci
+npm run filters
 npm start
+npm test
+npm run smoke
+npm run test:restart
+npm run dist
 ```
 
-On Linux, a graphical desktop and Chromium sandbox support are required. Keep the sandbox enabled. `npm run pack` builds `dist/AltSeende-linux-x64/AltSeende`, which runs without Node.js installed separately.
+`npm run dist` generates AppImage, RPM and portable archive in `dist/installers/`. `launch.sh` prefers the unpacked current build if available.
 
-## Available in this milestone
+Unit tests cover URL policy, queries, private-session serialization, pane geometry and bundled filter behavior. `npm run test:restart` also closes and relaunches the actual application with an isolated profile to verify persistence. The real-Electron smoke test verifies isolation, ad blocking on/off (network and CSS), address updates, Reader transfer, video/image downloads, screenshot capture, split activation, cookies, session restore logic, groups, presets and toolbar customization. It uses an isolated temporary profile and local fixtures; it does not certify third-party site compatibility. The split-view documentation image composites captures of the shell and actual page surfaces because Electron's shell capture omits child views.
 
-- Real web pages in isolated Chromium WebContentsViews; bottom tabs, back/forward/reload, new windows routed to tabs.
-- Google, Yandex, DuckDuckGo, Bing and Brave search; one query across selected engines.
-- Query builder: exact phrase, exclusions, domain, file type and date. Provider support for operators varies.
-- Regular persistent profile and separate private in-memory tabs; no app telemetry or saved browsing-history database.
-- A small built-in tracker hostname blocklist, HTTPS upgrades, DNT/GPC headers, restricted WebRTC UDP, denied site permissions, clear storage/cache.
-- Reader for selected text, page text or pasted text, with voice and speed controls. Requires system speech voices; availability varies by OS.
-- Discovery/download of direct video links plus a manual URL field and session download progress. Native save dialog chooses destination.
-- Experimental unpacked Chrome extensions, remembered between launches and removable from Settings.
-- Accent, density, typeface and configurable application keyboard shortcuts.
+The GitHub Actions workflow builds downloadable Linux installers after code pushes to `main`, then creates a release for a new package version. Repeated builds of the same version remain available as workflow artifacts instead of replacing published installers.
 
-## Honest boundaries
+## Source layout
 
-Electron supports only a subset of Chrome extension APIs. Chrome Web Store installation, arbitrary Chrome extensions, extension toolbar popups and full Manifest V3 compatibility are not delivered. See [Electron extension support](https://www.electronjs.org/docs/latest/api/extensions).
+- `src/main.cjs`: sessions, views, IPC validation, persistence, downloads and tools.
+- `src/renderer.js`, `style.css`, `icons.js`: local interface, no remote fonts/scripts.
+- `src/content-preload.cjs`: isolated cosmetic filtering bridge, no website-facing API.
+- `src/filters.cjs`: list download, compilation and loading.
+- `src/workspaces.cjs`: private-safe session snapshots and pane geometry.
+- `src/core.cjs`: query construction and URL policy.
 
-Video discovery only inspects the top-level document for direct MP4/WebM/OGG/MOV links. DRM, blob URLs, HLS/DASH streams, authenticated extraction and “every video on every website” are not supported.
-
-This is not an anonymity browser. Websites see your IP. The small blocklist is not a comprehensive ad/tracker filter; fingerprint resistance, third-party-cookie controls and secure DNS UI are future work. Private tabs share a session until application exit. Downloads and explicitly installed extensions are persistent; private mode does not erase downloaded files. No automatic updater, Safe Browsing service, password manager or security audit is included. Keep Electron current before routine browsing. Camera, microphone, geolocation and notification permissions are currently always denied.
-
-## Shortcuts
-
-| Action | Default |
-| --- | --- |
-| New tab | Control+T |
-| Close tab | Control+W |
-| Address | Control+L |
-| Multi-search | Control+Shift+F |
-| Private tab | Control+Shift+N |
-
-Shortcuts are application-local. Edit them in Settings with unique Control+[Shift+][Alt+]Letter combinations.
-
-## Verification
-
-`npm test` covers search composition, URL scheme restrictions, HTTPS behavior and tracker hostname boundaries. `npm run smoke` opens the actual app with an isolated temporary profile and a local HTTP fixture, checks renderer isolation, private-cookie separation, tab lifecycle, multi-search and settings, and captures `docs/preview.png`. It requires a graphical desktop. Tests do not certify security or third-party site/extension compatibility.
-
-## Architecture and next checkpoints
-
-`src/main.cjs` owns tabs, sessions, permissions and validated shell-only IPC; `preload.cjs` exposes a small command bridge only to the local UI. Remote pages have sandboxing/context isolation enabled and no Node or preload bridge. `core.cjs` contains pure search/URL policy functions. The UI has a restrictive Content Security Policy and no remote fonts or scripts.
-
-1. **0.1 — this milestone:** runnable visual direction and core research flows.
-2. **0.2 — after design feedback:** richer search profiles, custom engines, tab groups, bookmarks and granular permissions.
-3. **0.3:** maintained filter lists, media extraction integration, speech improvements and packaging for additional operating systems.
-4. **Architecture checkpoint:** choose between continuing Electron with documented extension limits or migrating to a Chromium source fork for full browser extension integration.
-
-User settings live in Electron's OS-specific `userData` directory under AltSeende Browser. Source assets and the eye SVG are bundled locally.
+Settings and session data live in Electron's `userData` directory for AltSeende Browser. Existing 0.1 preferences are preserved. Filter source/licensing details are in [THIRD_PARTY.md](THIRD_PARTY.md).

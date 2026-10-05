@@ -1,0 +1,45 @@
+name: Build downloadable Linux release
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**.md"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: linux-release
+  cancel-in-progress: false
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: npm ci
+      - run: npm run filters
+      - run: npm test
+      - run: npx electron-builder --linux AppImage tar.gz --publish never && node scripts/build-rpm.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AltSeende-Linux
+          path: |
+            dist/installers/*.AppImage
+            dist/installers/*.rpm
+            dist/installers/*.tar.gz
+      - name: Publish versioned installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release already exists; new builds are available as workflow artifacts."
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --title "AltSeende Browser ${version}" --notes-file RELEASE_NOTES.md dist/installers/*.AppImage dist/installers/*.rpm dist/installers/*.tar.gz
+          fi

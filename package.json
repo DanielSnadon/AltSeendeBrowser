@@ -1,7 +1,7 @@
 {
   "name": "altseende-browser",
   "productName": "AltSeende Browser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A minimal Chromium-powered research browser",
   "main": "src/main.cjs",
@@ -9,10 +9,66 @@
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
     "smoke": "electron . --smoke-test",
-    "pack": "electron-packager . AltSeende --platform=linux --arch=x64 --out=dist --overwrite --ignore=^/test --ignore=^/dist"
+    "pack": "electron-packager . AltSeende --platform=linux --arch=x64 --out=dist --overwrite --ignore=^/test --ignore=^/dist",
+    "filters": "node src/filters.cjs",
+    "dist": "npm run filters && electron-builder --linux AppImage tar.gz --publish never && node scripts/build-rpm.cjs",
+    "dist:win": "npm run filters && electron-builder --win nsis --publish never",
+    "test:restart": "node scripts/test-restart.cjs"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",
-    "electron": "44.5.1"
-  }
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "dependencies": {
+    "@ghostery/adblocker": "2.18.2",
+    "tldts-experimental": "7.0.25"
+  },
+  "author": {
+    "name": "Daniel Snadon",
+    "email": "danielsnadon@gmail.com"
+  },
+  "homepage": "https://github.com/DanielSnadon/AltSeendeBrowser",
+  "build": {
+    "appId": "com.altseende.browser",
+    "productName": "AltSeende Browser",
+    "directories": {
+      "output": "dist/installers"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "README.md",
+      "THIRD_PARTY.md"
+    ],
+    "asar": true,
+    "linux": {
+      "executableName": "altseende-browser",
+      "icon": "assets/icon.png",
+      "category": "Network",
+      "artifactName": "AltSeende-${version}-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "Name": "AltSeende Browser",
+          "Comment": "Private research browser with split views",
+          "StartupWMClass": "altseende-browser",
+          "Categories": "Network;WebBrowser;"
+        }
+      },
+      "syncDesktopName": true
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": "nsis",
+      "artifactName": "AltSeende-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "compression": "normal"
+  },
+  "desktopName": "altseende-browser.desktop"
 }

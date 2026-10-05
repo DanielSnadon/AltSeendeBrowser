@@ -1,7 +1,141 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'"><title>AltSeende Browser</title><link rel="stylesheet" href="style.css"></head><body>
-<header><div class="brand"><img src="../assets/eye.svg" alt="AltSeende eye"> ALTSEENDE <span> / BROWSER</span></div><div class="top-actions"><span id="privacy">PRIVATE BY INTENTION</span><button data-panel="settings">Settings ↗</button></div></header>
-<nav><button id="back" title="Back">←</button><button id="forward" title="Forward">→</button><button id="reload" title="Reload">↻</button><form id="address-form"><span>⌕</span><input id="address" aria-label="Address or search" placeholder="Search freely, or enter a URL" autocomplete="off"><kbd>CTRL L</kbd></form><button data-panel="search">Multi-search</button><button data-panel="reader">Reader</button><button data-panel="downloads">Downloads</button></nav>
-<main id="home"><div class="eyebrow">ALTSEENDE / A DIFFERENT PERSPECTIVE</div><img class="hero-eye" src="../assets/eye.svg" alt=""><h1>Look beyond.</h1><p class="intro">Less noise. More discovery.<br>Your window to a wider web.</p><form id="home-search"><input id="home-query" aria-label="Search the web" placeholder="What are you looking for?" autocomplete="off"><button type="submit">Explore ↗</button></form><div class="home-links"><button data-panel="search">01 <span>Search across engines</span> ↗</button><button id="private">02 <span>Open a private tab</span> ↗</button><button data-panel="settings">03 <span>Make it your own</span> ↗</button></div><div class="footnote"><span id="home-status">LOCAL FIRST / NO TELEMETRY</span><span>V.01 — EARLY ACCESS</span></div></main>
-<section id="panel" hidden><div class="panel-heading"><div><div class="eyebrow">YOUR WORKSPACE</div><h2 id="panel-title"></h2></div><button id="close-panel">Close ×</button></div><div id="panel-body"></div></section>
-<div id="error" hidden></div><div id="toast" role="status" hidden></div><footer><div id="tabs"></div><button id="new-tab" title="New tab (Ctrl+T)">＋</button><span class="footer-brand">ALT / <span id="tab-count">01</span></span></footer>
-<script src="renderer.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'"
+    />
+    <title>AltSeende Browser</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav>
+      <button id="brand" title="New tab" aria-label="New tab">
+        <img src="../assets/eye.svg" alt="" />
+      </button>
+      <div class="nav-controls">
+        <button
+          id="back"
+          data-icon="back"
+          title="Back"
+          aria-label="Back"
+        ></button
+        ><button
+          id="forward"
+          data-icon="forward"
+          title="Forward"
+          aria-label="Forward"
+        ></button
+        ><button
+          id="reload"
+          data-icon="reload"
+          title="Reload"
+          aria-label="Reload"
+        ></button>
+      </div>
+      <form id="address-form">
+        <button
+          type="button"
+          id="blocker"
+          title="Ad blocker"
+          aria-label="Ad blocker"
+          data-icon="shield"
+        ></button
+        ><input
+          id="address"
+          aria-label="Page address or search"
+          placeholder="Search or enter an address"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </form>
+      <div id="tools"></div>
+      <button
+        id="settings"
+        data-panel="settings"
+        data-icon="settings"
+        title="Settings"
+        aria-label="Settings"
+      ></button>
+    </nav>
+    <main id="home">
+      <div class="home-wordmark">
+        <img src="../assets/eye.svg" alt="" /><span>ALTSEENDE</span>
+      </div>
+      <h1 id="home-title">Start here.</h1>
+      <p class="intro">
+        Search the web. Compare perspectives. Pick up where you left off.
+      </p>
+      <form id="home-search">
+        <input
+          id="home-query"
+          aria-label="Search the web"
+          placeholder="Search anything…"
+          autocomplete="off"
+        /><button
+          data-icon="forward"
+          title="Search"
+          aria-label="Search"
+        ></button>
+      </form>
+      <div class="search-options">
+        <select id="home-engine" aria-label="Search engine"></select
+        ><label
+          ><input id="home-multi" type="checkbox" /> Compare Google, Yandex &
+          DuckDuckGo</label
+        >
+      </div>
+      <section id="presets-section">
+        <div class="section-title">
+          <h2>Your spaces</h2>
+          <button
+            id="edit-home"
+            data-icon="edit"
+            title="Customize home & presets"
+            aria-label="Customize home & presets"
+          ></button>
+        </div>
+        <div id="presets"></div>
+      </section>
+      <div class="home-footer">
+        <span id="home-status">A quieter corner of the web.</span
+        ><span>0.2</span>
+      </div>
+    </main>
+    <div id="pane-headers"></div>
+    <section id="panel" hidden>
+      <div class="panel-heading">
+        <h2 id="panel-title"></h2>
+        <button
+          id="close-panel"
+          data-icon="close"
+          title="Close panel"
+          aria-label="Close panel"
+        ></button>
+      </div>
+      <div id="panel-body"></div>
+    </section>
+    <div id="error" hidden></div>
+    <div id="toast" role="status" hidden></div>
+    <footer>
+      <button
+        id="manage-tabs"
+        data-icon="groups"
+        title="Tabs & groups"
+        aria-label="Tabs & groups"
+      ></button>
+      <div id="tabs"></div>
+      <button
+        id="new-tab"
+        data-icon="plus"
+        title="New tab (Ctrl+T)"
+        aria-label="New tab"
+      ></button
+      ><span id="tab-count"></span>
+    </footer>
+    <script src="icons.js"></script>
+    <script src="renderer.js"></script>
+  </body>
+</html>
