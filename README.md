@@ -1,6 +1,6 @@
 # AltSeende Browser
 
-A minimal, English-language Chromium browser for research. **Version 0.3.0** uses Electron 44 with sandboxed web pages, bottom tabs and an eye identity.
+A minimal, English-language Chromium browser for research. **Version 0.3.1** uses Electron 44 with sandboxed web pages, bottom tabs and an eye identity.
 
 ![Home](docs/preview.png)
 
@@ -9,7 +9,7 @@ A minimal, English-language Chromium browser for research. **Version 0.3.0** use
 Open [Releases](https://github.com/DanielSnadon/AltSeendeBrowser/releases) and select a Linux x64 download. The repository is private, so sign into an account with access.
 
 - **Fedora RPM:** open the `.rpm` with the software installer. After installing, launch **AltSeende Browser** from the application menu.
-- **AppImage:** enable executable permission in file properties and run it. If FUSE 2 is missing, use `./AltSeende-0.3.0-x86_64.AppImage --appimage-extract-and-run`.
+- **AppImage:** enable executable permission in file properties and run it. If FUSE 2 is missing, use `./AltSeende-0.3.1-x86_64.AppImage --appimage-extract-and-run`.
 - **Portable archive:** extract the full `.tar.gz` and run `altseende-browser` inside. Keep the bundled files together.
 
 Node.js is not required for these downloads. These packages target Linux x64. Windows packaging is configured (`npm run dist:win`) but is not part of the Linux release and has not been tested on Windows.
@@ -36,7 +36,7 @@ This removes the installed application; profile data, source code and downloaded
 To install or update from a downloaded RPM in the current directory:
 
 ```sh
-sudo dnf install ./AltSeende-0.3.0-x86_64.rpm
+sudo dnf install ./AltSeende-0.3.1-x86_64.rpm
 ```
 
 No need to uninstall before upgrading.

@@ -374,7 +374,6 @@ function searchPanel(body) {
     const result = await call("search", d);
     if (result) {
       await hidePanel();
-      render(result);
     }
   }
   form.onsubmit = (e) => {

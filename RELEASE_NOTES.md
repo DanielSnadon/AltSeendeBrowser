@@ -3,7 +3,7 @@ AltSeende Browser 0.3 introduces a luminous graphite/cyan design, smooth configu
 New toolbar tools: audio mixer, bookmarks, find on page, zoom, fullscreen, PDF export, printing and copy link. Tools can be reordered or hidden.
 
 Linux x64:
-- RPM: install or update with `sudo dnf install ./AltSeende-0.3.0-x86_64.rpm`, then launch from the application menu.
+- RPM: install or update with `sudo dnf install ./AltSeende-0.3.1-x86_64.rpm`, then launch from the application menu.
 - AppImage: mark executable and run; if FUSE 2 is unavailable, use `--appimage-extract-and-run`.
 - tar.gz: extract everything and run `altseende-browser`.
 - Uninstall RPM: `sudo dnf remove altseende-browser`. Profile data and downloaded files remain.

@@ -338,12 +338,12 @@ module.exports = async ({
     assert.equal(new Set(resultTabs.map((x) => x.group)).size, 1);
     for (const item of resultTabs) closeTab(item.id);
     await command("settings", { motion: false });
-    await delay(100);
-    assert.equal(
-      await win.webContents.executeJavaScript(
-        "document.body.classList.contains('no-motion')",
-      ),
-      true,
+    await until(
+      async () =>
+        await win.webContents.executeJavaScript(
+          "document.body.classList.contains('no-motion')",
+        ),
+      "Reduced motion was not rendered",
     );
     await command("settings", { motion: true });
     await command("settings", {
