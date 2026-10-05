@@ -6,7 +6,7 @@ function render(s){state=s;if(!s.overlay&&panel){panel='';$('#panel').hidden=tru
  $('#tabs').replaceChildren();for(const t of s.tabs){const box=el('div',undefined,'tab'+(t.id===s.active?' active':''));const b=el('button',(t.private?'◈ ':'')+t.title);b.title=t.url||t.title;b.onclick=async()=>{await hidePanel();await call('activate',t.id);};const close=el('button','×');close.setAttribute('aria-label','Close '+t.title);close.onclick=()=>call('close',t.id);box.append(b,close);$('#tabs').append(box);}$('#tab-count').textContent=String(s.tabs.length).padStart(2,'0');$('#error').hidden=!t?.error||!!panel;$('#error').textContent=t?.error||'';
  if(panel==='downloads')downloadList();
 }
-window.alt.onState(render);window.alt.onShortcut(a=>{if(a==='address'){$('#address').focus();$('#address').select();}else showPanel('search');});window.alt.onReader(t=>{showPanel('reader');$('#reader-text').value=t;});
+window.alt.onState(render);window.alt.onShortcut(a=>{if(a==='address'){$('#address').focus();$('#address').select();}else showPanel('search');});window.alt.onReader(async t=>{await showPanel('reader');$('#reader-text').value=t;});
 async function hidePanel(){panel='';$('#panel').hidden=true;await call('overlay',false);if(state)render(state);}
 function label(text,input){const l=el('label',text);l.append(input);return l;}
 function input(name,placeholder='',value=''){const e=el('input');e.name=name;e.placeholder=placeholder;e.value=value;return e;}
