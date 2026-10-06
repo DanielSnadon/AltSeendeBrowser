@@ -1,11 +1,14 @@
-AltSeende Browser 0.3 introduces a luminous graphite/cyan design, smooth configurable animations, six-engine advanced search in a 3 × 2 split, and per-tab volume/mute with persistence.
+# AltSeende Browser 0.4.0
 
-New toolbar tools: audio mixer, bookmarks, find on page, zoom, fullscreen, PDF export, printing and copy link. Tools can be reordered or hidden.
+Monochrome interface, compact side panels and a searchable Control center with built-in help. Quick split controls are available directly from the toolbar.
 
-Linux x64:
-- RPM: install or update with `sudo dnf install ./AltSeende-0.3.1-x86_64.rpm`, then launch from the application menu.
-- AppImage: mark executable and run; if FUSE 2 is unavailable, use `--appimage-extract-and-run`.
-- tar.gz: extract everything and run `altseende-browser`.
-- Uninstall RPM: `sudo dnf remove altseende-browser`. Profile data and downloaded files remain.
+- Integrated browser tunnel: VLESS/REALITY, VMess, Trojan, Shadowsocks, SOCKS5 and HTTP(S), with NekoBox-compatible profile link import and a bundled sing-box core.
+- Encrypted local password/profile vault, manual exact-origin fill, password generator and auto-lock.
+- Isolated captive-network sign-in, local page QR codes, per-site dark mode, improved bookmarks.
+- History, reopen/duplicate/pin/find tabs, read-later list, page notes, tracking-parameter removal, bookmark import/export.
+- Six-engine 3 × 2 search, per-tab media volume, sessions, groups and existing tools remain available.
 
-Volume sliders scale HTML audio/video, including frames and new players; native mute silences all tab sound. Web Audio synthesis is not amplitude-scaled. Private tabs are never restored. Existing limitations remain: partial unpacked Chrome extension support, direct-media video downloads, manual blocker updates and no automatic app updater.
+The tunnel requires your own working server profile. It routes browser traffic rather than the whole device, has no automatic direct fallback, and resumes in a blocked state after restart until reconnected or explicitly disconnected. Access from any particular network is not guaranteed. The password manager has no recovery or cloud synchronization. Linux x64 only; real external VPN servers/captive networks still need provider-specific testing.
+
+Install/update on Fedora: `sudo dnf install ./AltSeende-0.4.0-x86_64.rpm`
+Uninstall the RPM: `sudo dnf remove altseende-browser` (profile remains).

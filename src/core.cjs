@@ -11,7 +11,7 @@ const defaults = {
   trackers: true,
   dnt: true,
   httpsOnly: true,
-  accent: "#74c9ff",
+  accent: "#d0d0d0",
   density: "comfortable",
   font: "mono",
   shortcuts: {
@@ -33,8 +33,9 @@ const defaults = {
     "screenshot",
     "audio",
     "bookmarks",
-    "find",
-    "fullscreen",
+    "network",
+    "qr",
+    "dark",
   ],
   presets: [
     {
@@ -51,7 +52,12 @@ const defaults = {
   groups: [],
   bookmarks: [],
   motion: true,
-  designVersion: 3,
+  designVersion: 4,
+  splitColumns: 0,
+  darkSites: [],
+  readingList: [],
+  notes: {},
+  networkGuard: false,
 };
 function query(o) {
   return [

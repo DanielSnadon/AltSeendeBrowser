@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm ci
+      - run: npm run tunnel
       - run: npm run filters
       - run: npm test
       - run: npx electron-builder --linux AppImage tar.gz --publish never && node scripts/build-rpm.cjs

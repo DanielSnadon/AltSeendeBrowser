@@ -3,3 +3,5 @@ dist/
 *.log
 .test-profile/
 assets/filters/
+
+assets/tunnel/

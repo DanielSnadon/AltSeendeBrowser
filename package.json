@@ -1,7 +1,7 @@
 {
   "name": "altseende-browser",
   "productName": "AltSeende Browser",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "description": "A minimal Chromium-powered research browser",
   "main": "src/main.cjs",
@@ -11,9 +11,10 @@
     "smoke": "electron . --smoke-test",
     "pack": "electron-packager . AltSeende --platform=linux --arch=x64 --out=dist --overwrite --ignore=^/test --ignore=^/dist",
     "filters": "node src/filters.cjs",
-    "dist": "npm run filters && electron-builder --linux AppImage tar.gz --publish never && node scripts/build-rpm.cjs",
+    "dist": "npm run filters && npm run tunnel && electron-builder --linux AppImage tar.gz --publish never && node scripts/build-rpm.cjs",
     "dist:win": "npm run filters && electron-builder --win nsis --publish never",
-    "test:restart": "node scripts/test-restart.cjs"
+    "test:restart": "node scripts/test-restart.cjs",
+    "tunnel": "node scripts/tunnel.cjs"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",
@@ -22,6 +23,8 @@
   },
   "dependencies": {
     "@ghostery/adblocker": "2.18.2",
+    "darkreader": "4.9.133",
+    "qrcode": "1.5.4",
     "tldts-experimental": "7.0.25"
   },
   "author": {
@@ -40,7 +43,8 @@
       "assets/**/*",
       "package.json",
       "README.md",
-      "THIRD_PARTY.md"
+      "THIRD_PARTY.md",
+      "!assets/tunnel/**/*"
     ],
     "asar": true,
     "linux": {
@@ -68,7 +72,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true
     },
-    "compression": "normal"
+    "compression": "normal",
+    "extraResources": [
+      {
+        "from": "assets/tunnel",
+        "to": "tunnel"
+      }
+    ]
   },
   "desktopName": "altseende-browser.desktop"
 }

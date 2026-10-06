@@ -18,6 +18,16 @@ module.exports = async ({ phase, app, state, newTab, command }) => {
       });
       await command("volume", { id: a.id, volume: 0.3, muted: true });
       await command("volume", { id: b.id, volume: 0.7 });
+      await command("pin");
+      await command("vaultUnlock", "restart master password");
+      await command("vaultSave", {
+        origin: "https://example.com",
+        username: "restart",
+        password: "encrypted secret",
+      });
+      await command("networkImport", "socks5://127.0.0.1:9#Restart");
+      const profile = (await command("networkProfiles"))[0];
+      await command("networkConnect", profile.id);
       app.quit();
     } else {
       const s = state();
@@ -26,6 +36,15 @@ module.exports = async ({ phase, app, state, newTab, command }) => {
         s.tabs.every((t) => !t.private && !t.url.includes("private-secret")),
       );
       assert.equal(s.split.length, 2);
+      assert.equal(
+        s.tabs.find((t) => t.url.endsWith("/restore-b")).pinned,
+        true,
+      );
+      assert.equal(s.network.mode, "blocked");
+      assert.equal((await command("vaultStatus")).unlocked, false);
+      await command("vaultUnlock", "restart master password");
+      assert.equal((await command("vaultList"))[0].username, "restart");
+      assert.equal((await command("networkProfiles"))[0].name, "Restart");
       assert.ok(
         s.tabs.find((t) => t.id === s.active).url.endsWith("/restore-b"),
       );

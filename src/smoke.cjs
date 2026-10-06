@@ -24,13 +24,14 @@ module.exports = async ({
   persistSession,
   restoreSession,
   profileFile,
+  features,
 }) => {
   let server,
     requests = 0;
   const timer = setTimeout(() => {
     console.error("SMOKE timeout");
     app.exit(1);
-  }, 60000);
+  }, 120000);
   try {
     const outputDir = app.isPackaged
       ? app.getPath("userData")
@@ -368,9 +369,20 @@ module.exports = async ({
       async () =>
         (await win.webContents.executeJavaScript(
           "document.querySelector('#panel-title').textContent",
-        )) === "Preferences",
+        )) === "Control center",
       "Settings panel failed",
     );
+    await require("./feature-smoke.cjs")({
+      app,
+      win,
+      tabs,
+      current,
+      newTab,
+      command,
+      state,
+      features,
+      server,
+    });
     await assert.rejects(() => command("navigate", "file:///etc/passwd"));
     console.log(
       "SMOKE PASS: real pages, isolation, network/cosmetic blocker on/off, address, reader, video/image download, screenshot, split focus, private cookies, session restore, groups, presets, toolbar, six-engine advanced search, independent and iframe audio, zoom, find, bookmarks, PDF, motion settings",

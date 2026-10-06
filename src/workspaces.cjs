@@ -9,15 +9,20 @@ function snapshot(tabs, active, split, groups) {
       group: t.group || "",
       volume: t.volume ?? 1,
       muted: !!t.muted,
+      pinned: !!t.pinned,
     })),
     active: regular.some((t) => t.id === active) ? active : regular.at(-1)?.id,
     split: split.filter((id) => regular.some((t) => t.id === id)),
     groups,
   };
 }
-function paneBounds(ids, width, height) {
+function paneBounds(ids, width, height, preferredColumns) {
   const count = ids.length,
-    columns = count <= 3 ? count : Math.ceil(Math.sqrt(count)),
+    columns = preferredColumns
+      ? Math.min(count, preferredColumns)
+      : count <= 3
+        ? count
+        : Math.ceil(Math.sqrt(count)),
     rows = Math.ceil(count / columns);
   if (!count) return [];
   const gap = 6,

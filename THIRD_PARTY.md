@@ -11,3 +11,10 @@ Ad-blocking lists are downloaded by `npm run filters` and bundled in installers 
 The Settings refresh control fetches these three URLs explicitly. Runtime filtering uses network and CSS rules; scriptlets and extended procedural selectors are not implemented. No acceptable-ads allowlist is enabled.
 
 The optional speed test contacts https://speed.cloudflare.com/ and downloads up to 8 MB. It runs only when the user starts a test.
+
+## Version 0.4 components
+
+- Dark Reader 4.9.133 (MIT): local page theme processing; source and license in the bundled Node package. https://github.com/darkreader/darkreader
+- node-qrcode (MIT): local QR generation. https://github.com/soldair/node-qrcode
+- sing-box 1.14.2, an unmodified separate executable, GPL-3.0-or-later: https://github.com/SagerNet/sing-box/tree/v1.14.2. The build script pins and verifies the binary archive SHA-256. Its LICENSE and corresponding source archive are included beside the executable in resources/tunnel. Upstream dependencies and notices remain in that source distribution and binary.
+- Captive-network sign-in explicitly opens http://detectportal.firefox.com/canonical.html in an isolated direct session. It does not probe automatically.

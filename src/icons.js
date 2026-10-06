@@ -1,4 +1,22 @@
 const iconPaths = {
+  control: "M4 5h16M4 12h16M4 19h16M8 3v4M16 10v4M10 17v4",
+  network:
+    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M3 12h18M12 3c-5 5-5 13 0 18 5-5 5-13 0-18",
+  vault: "M5 10h14v11H5zM8 10V6a4 4 0 0 1 8 0v4M12 14v3",
+  portal:
+    "M3 8a15 15 0 0 1 18 0M6 12a10 10 0 0 1 12 0M9 16a5 5 0 0 1 6 0M12 20h.01",
+  qr: "M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h3v3h3v3h-6z",
+  dark: "M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11",
+  history: "M3 4v6h6M3 10a9 9 0 1 1 2 8M12 7v5l3 2",
+  reading: "M4 3h16v18l-8-5-8 5z",
+  notes: "M5 3h14v18H5zM8 7h8M8 11h8M8 15h5",
+  tabSearch:
+    "M3 4h18v16H3zM8 4v4M3 8h18M14 14a3 3 0 1 0-6 0 3 3 0 0 0 6 0M14 16l3 3",
+  reopen: "M5 9H2V6M2 9a9 9 0 1 1 1 8",
+  duplicate: "M8 8h13v13H8zM16 8V3H3v13h5",
+  pin: "M8 3h8l-1 7 4 4H5l4-4zM12 14v7",
+  cleanLink:
+    "M10 7l2-2a5 5 0 0 1 7 7l-2 2M14 17l-2 2a5 5 0 0 1-7-7l2-2M8 16l8-8",
   audio: "M4 9h4l5-5v16l-5-5H4zM17 8q5 4 0 8",
   muted: "M4 9h4l5-5v16l-5-5H4zM17 9l5 6M17 15l5-6",
   bookmarks: "M6 3h12v19l-6-4-6 4z",

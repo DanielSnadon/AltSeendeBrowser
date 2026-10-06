@@ -15,7 +15,7 @@ const spec = `Name: altseende-browser
 Version: ${pkg.version}
 Release: 1
 Summary: Minimal Chromium research browser
-License: LicenseRef-Proprietary
+License: LicenseRef-Proprietary AND GPL-3.0-or-later AND MIT AND MPL-2.0
 URL: ${pkg.homepage}
 BuildArch: x86_64
 AutoReqProv: no

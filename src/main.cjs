@@ -50,7 +50,8 @@ let win,
   restoring = true,
   saveTimer,
   filterState,
-  speedRunning = false;
+  speedRunning = false,
+  features;
 const tabs = new Map(),
   downloads = [];
 let denied = 0;
@@ -79,12 +80,14 @@ function panes() {
   const [w, h] = win?.getContentSize() || [1400, 900];
   return paneBounds(
     split.filter((id) => tabs.has(id) && tabs.get(id).url),
-    w,
+    w - (overlay ? Math.min(520, Math.floor(w * 0.46)) + 20 : 0),
     h,
+    settings.splitColumns,
   );
 }
 function state() {
   return {
+    ...features?.status(),
     tabs: [...tabs.values()].map((t) => ({
       id: t.id,
       title: t.title,
@@ -94,6 +97,7 @@ function state() {
       error: t.error,
       volume: t.volume,
       muted: t.muted,
+      pinned: !!t.pinned,
       zoom: t.view.webContents.getZoomFactor(),
     })),
     active,
@@ -121,12 +125,14 @@ function publish() {
 }
 function layout() {
   if (!win || closing) return;
-  const [width, height] = win.getContentSize(),
+  const [fullWidth, height] = win.getContentSize(),
+    width =
+      fullWidth -
+      (overlay ? Math.min(520, Math.floor(fullWidth * 0.46)) + 20 : 0),
     grid = panes();
   for (const t of tabs.values()) {
     const p = grid.find((p) => p.id === t.id);
-    const visible =
-      !overlay && !!t.url && (split.length ? !!p : t.id === active);
+    const visible = !!t.url && (split.length ? !!p : t.id === active);
     t.view.setVisible(visible);
     t.view.setBounds(
       p
@@ -144,6 +150,11 @@ function setupSession(s) {
   s.setPermissionRequestHandler((_wc, _p, cb) => cb(false));
   s.setPermissionCheckHandler(() => false);
   s.webRequest.onBeforeRequest((d, cb) => {
+    if (
+      features &&
+      ["connecting", "blocked"].includes(features.tunnel.status.mode)
+    )
+      return cb({ cancel: true });
     let u;
     try {
       u = new URL(d.url);
@@ -226,6 +237,11 @@ function activate(id, focus = false) {
 function shortcut(wc) {
   wc.on("before-input-event", (e, i) => {
     if (i.type !== "keyDown") return;
+    if (i.control && i.shift && i.key.toLowerCase() === "t") {
+      e.preventDefault();
+      features?.actions.reopen();
+      return;
+    }
     if (i.key === "F11") {
       e.preventDefault();
       win.setFullScreen(!win.isFullScreen());
@@ -288,10 +304,15 @@ function newTab(url = "", priv = false, options = {}) {
       ? Math.max(0, Math.min(1, options.volume))
       : 1,
     muted: !!options.muted,
+    pinned: !!options.pinned,
   };
   tabs.set(id, t);
   wc.setAudioMuted(t.muted || t.volume === 0);
   wc.on("did-frame-finish-load", () => applyVolume(t));
+  wc.on("did-finish-load", () => {
+    features?.applyDark(t);
+    features?.historyVisit(t);
+  });
   wc.on("found-in-page", (_event, result) => {
     if (id === active) win.webContents.send("found", result);
   });
@@ -387,6 +408,7 @@ function closeTab(id) {
   const t = tabs.get(id);
   if (!t) return;
   win.contentView.removeChildView(t.view);
+  features?.closed(t);
   tabs.delete(id);
   split = split.filter((x) => x !== id);
   if (split.length < 2) split = [];
@@ -462,15 +484,18 @@ async function speedTest() {
   speedRunning = true;
   try {
     const start = performance.now();
-    const ping = await fetch("https://speed.cloudflare.com/__down?bytes=0", {
-      signal: AbortSignal.timeout(15000),
-      cache: "no-store",
-    });
+    const ping = await normal.fetch(
+      "https://speed.cloudflare.com/__down?bytes=0",
+      {
+        signal: AbortSignal.timeout(15000),
+        cache: "no-store",
+      },
+    );
     if (!ping.ok) throw Error("Speed server unavailable.");
     await ping.arrayBuffer();
     const latency = performance.now() - start;
     const begun = performance.now(),
-      response = await fetch(
+      response = await normal.fetch(
         "https://speed.cloudflare.com/__down?bytes=8000000",
         { signal: AbortSignal.timeout(45000), cache: "no-store" },
       );
@@ -484,7 +509,7 @@ async function speedTest() {
       bytes,
     };
   } finally {
-    speedRunning = false;
+    ((speedRunning = false), features);
   }
 }
 ipcMain.handle("cosmetic-filters", (event, data) => {
@@ -537,6 +562,7 @@ async function savePDF() {
   return "PDF saved.";
 }
 async function command(action, data) {
+  if (features?.actions[action]) return features.actions[action](data);
   switch (action) {
     case "state":
       return state();
@@ -653,6 +679,10 @@ async function command(action, data) {
       const priv = current()?.private,
         group = priv ? "" : newGroup(q.slice(0, 40)),
         ids = selected.map((e) => newTab(searchURL(q, e), priv, { group }).id);
+      if (data.all) {
+        settings.splitColumns = 0;
+        save();
+      }
       if ((data.all || data.split) && ids.length > 1) setSplit(ids);
       break;
     }
@@ -754,6 +784,20 @@ async function command(action, data) {
             "pdf",
             "print",
             "copyLink",
+            "control",
+            "network",
+            "vault",
+            "portal",
+            "qr",
+            "dark",
+            "history",
+            "reading",
+            "notes",
+            "tabSearch",
+            "reopen",
+            "duplicate",
+            "pin",
+            "cleanLink",
           ].includes(t),
         );
       if (data.shortcuts) {
@@ -874,6 +918,7 @@ function restoreSession(saved) {
       background: true,
       volume: t.volume,
       muted: t.muted,
+      pinned: t.pinned,
     });
     mapping.set(t.id, tab.id);
   }
@@ -894,12 +939,17 @@ app.whenReady().then(async () => {
       shortcuts: { ...settings.shortcuts, ...loaded.shortcuts },
     };
   } catch {}
-  if (settings.designVersion !== 3) {
-    if (settings.accent === "#c5d1bd") settings.accent = defaults.accent;
+  if (settings.designVersion !== 4) {
+    settings.accent = defaults.accent;
     settings.tools = [
-      ...new Set([...settings.tools, "audio", "find", "bookmarks"]),
+      ...new Set([
+        ...settings.tools.filter((x) => !["fullscreen", "find"].includes(x)),
+        "network",
+        "qr",
+        "dark",
+      ]),
     ];
-    settings.designVersion = 3;
+    settings.designVersion = 4;
     save();
   }
   filterState = loadFilters([
@@ -908,6 +958,32 @@ app.whenReady().then(async () => {
   ]);
   normal = session.fromPartition("persist:altseende");
   privateSession = session.fromPartition("altseende-private");
+  features = require("./features.cjs")({
+    app,
+    win: () => win,
+    settings: () => settings,
+    sessions: [normal, privateSession],
+    current,
+    tabs,
+    newTab,
+    setSplit,
+    activate,
+    layout,
+    state,
+    publish,
+    save,
+    atomicJSON,
+    profileFile,
+  });
+  if (settings.networkGuard) {
+    await features.tunnel.proxy(9);
+    features.tunnel.status = {
+      mode: "blocked",
+      name: "",
+      error:
+        "Unlock your vault and reconnect, or disconnect explicitly to browse directly.",
+    };
+  }
   setupSession(normal);
   setupSession(privateSession);
   for (const p of settings.extensions)
@@ -941,6 +1017,7 @@ app.whenReady().then(async () => {
   });
   win.on("close", () => {
     persistSession();
+    features.stop();
     closing = true;
     clearTimeout(saveTimer);
   });
@@ -991,6 +1068,7 @@ app.whenReady().then(async () => {
       persistSession,
       restoreSession,
       profileFile,
+      features,
     });
 });
 app.on("window-all-closed", () => app.quit());

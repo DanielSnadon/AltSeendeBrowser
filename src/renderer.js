@@ -10,6 +10,20 @@ let state,
   seenTabs = new Set(),
   paneKey = "";
 const toolNames = {
+  control: "Control center",
+  network: "VPN & connection",
+  vault: "Passwords",
+  portal: "Network sign-in",
+  qr: "Page QR",
+  dark: "Dark websites",
+  history: "History",
+  reading: "Read later",
+  notes: "Page notes",
+  tabSearch: "Find a tab",
+  reopen: "Reopen closed tab",
+  duplicate: "Duplicate tab",
+  pin: "Pin tab",
+  cleanLink: "Copy clean link",
   search: "Multi-search",
   split: "Split view",
   downloads: "Videos & downloads",
@@ -95,6 +109,11 @@ function submit(form, title = "Save", name = "save") {
   form.append(b);
 }
 function actionTool(name) {
+  if (name === "split") return call("quickSplit");
+  if (
+    ["dark", "portal", "reopen", "duplicate", "pin", "cleanLink"].includes(name)
+  )
+    return call(name).then((r) => typeof r === "string" && toast(r));
   if (["screenshot", "pdf", "print", "copyLink"].includes(name))
     call(name).then((r) => r && toast(r));
   else if (name === "fullscreen") call("fullscreen");
@@ -106,6 +125,7 @@ function actionTool(name) {
 function render(s) {
   state = s;
   document.body.classList.toggle("no-motion", !s.settings.motion);
+  document.body.classList.toggle("has-panel", !!s.overlay);
   if (!s.overlay && panel) {
     panel = "";
     $("#panel").hidden = true;
@@ -121,7 +141,7 @@ function render(s) {
   renderedActive = s.active;
   renderedURL = t?.url;
   $("#address").title = t?.url || "Page address or search";
-  $("#home").hidden = !!t?.url || !!panel;
+  $("#home").hidden = !!t?.url;
   $("#home-status").textContent = t?.private
     ? "Private session · these tabs will not be restored."
     : s.settings.restoreSession
@@ -135,9 +155,17 @@ function render(s) {
     toolsKey = tk;
     $("#tools").replaceChildren(
       ...s.settings.tools.map((n) =>
-        button(toolNames[n], () => actionTool(n), n),
+        Object.assign(
+          button(toolNames[n], () => actionTool(n), n),
+          { id: "tool-" + n },
+        ),
       ),
     );
+  }
+  if ($("#tool-network")) {
+    $("#tool-network").classList.toggle("active", s.network?.mode !== "direct");
+    $("#tool-network").title =
+      "VPN & connection · " + (s.network?.mode || "direct");
   }
   const hk = JSON.stringify([
     s.settings.presets,
@@ -185,7 +213,10 @@ function render(s) {
   $("#tabs").replaceChildren();
   let lastGroup = null;
   const groups = [...new Set(s.tabs.map((t) => t.group))];
-  const ordered = groups.flatMap((g) => s.tabs.filter((t) => t.group === g));
+  const ordered = [
+    ...s.tabs.filter((t) => t.pinned),
+    ...groups.flatMap((g) => s.tabs.filter((t) => t.group === g && !t.pinned)),
+  ];
   for (const t of ordered) {
     if (t.group && t.group !== lastGroup) {
       const g = s.settings.groups.find((g) => g.id === t.group);
@@ -203,7 +234,10 @@ function render(s) {
       undefined,
       `tab${t.id === s.active ? " active" : ""}${s.split.includes(t.id) ? " in-split" : ""}`,
     );
-    const b = el("button", (t.private ? "◈ " : "") + t.title);
+    const b = el(
+      "button",
+      (t.pinned ? "• " : "") + (t.private ? "◈ " : "") + t.title,
+    );
     b.title = t.url || t.title;
     b.onclick = async () => {
       await hidePanel();
@@ -228,42 +262,41 @@ function render(s) {
   const changedPanes = paneKey !== nextPaneKey;
   paneKey = nextPaneKey;
   $("#pane-headers").replaceChildren();
-  if (!panel && !s.overlay)
-    for (const p of s.panes) {
-      const tab = s.tabs.find((t) => t.id === p.id),
-        h = el(
-          "div",
-          undefined,
-          "pane-heading" + (p.id === s.active ? " active" : ""),
-        );
-      Object.assign(h.style, {
-        left: p.x + "px",
-        top: p.y + "px",
-        width: p.width + "px",
-      });
-      if (changedPanes) h.classList.add("arriving");
-      const url = el("span", tab.url, "pane-url");
-      url.title = tab.url;
-      url.onclick = () => call("activate", p.id);
-      h.append(
-        url,
-        button(
-          "Tab volume",
-          () => showAudio(tab.id),
-          tab.muted || tab.volume === 0 ? "muted" : "audio",
-        ),
-        button(
-          "Show only this tab",
-          async () => {
-            await call("split", []);
-            await call("activate", p.id);
-          },
-          "external",
-        ),
-        button("Close this tab", () => call("close", p.id), "close"),
+  for (const p of s.panes) {
+    const tab = s.tabs.find((t) => t.id === p.id),
+      h = el(
+        "div",
+        undefined,
+        "pane-heading" + (p.id === s.active ? " active" : ""),
       );
-      $("#pane-headers").append(h);
-    }
+    Object.assign(h.style, {
+      left: p.x + "px",
+      top: p.y + "px",
+      width: p.width + "px",
+    });
+    if (changedPanes) h.classList.add("arriving");
+    const url = el("span", tab.url, "pane-url");
+    url.title = tab.url;
+    url.onclick = () => call("activate", p.id);
+    h.append(
+      url,
+      button(
+        "Tab volume",
+        () => showAudio(tab.id),
+        tab.muted || tab.volume === 0 ? "muted" : "audio",
+      ),
+      button(
+        "Show only this tab",
+        async () => {
+          await call("split", []);
+          await call("activate", p.id);
+        },
+        "external",
+      ),
+      button("Close this tab", () => call("close", p.id), "close"),
+    );
+    $("#pane-headers").append(h);
+  }
   $("#error").hidden = !t?.error || !!panel;
   $("#error").textContent = t?.error || "";
   if (panel === "downloads") downloadList();
@@ -297,27 +330,35 @@ async function showPanel(name) {
   panel = name;
   const s = await call("overlay", true);
   if (s) state = s;
-  $("#home").hidden = true;
+  document.body.classList.add("has-panel");
+  $("#home").hidden = !!state.tabs.find((t) => t.id === state.active)?.url;
   $("#error").hidden = true;
-  $("#pane-headers").replaceChildren();
   $("#panel").hidden = false;
-  $("#panel-title").textContent = {
-    search: "Search across the web",
-    settings: "Preferences",
-    reader: "Read aloud",
-    downloads: "Videos & downloads",
-    split: "Arrange your view",
-    groups: "Tabs & groups",
-    home: "Your home, your spaces",
-    speed: "Connection speed",
-    audio: "Tab audio",
-    bookmarks: "Saved pages",
-    zoom: "Page zoom",
-  }[name];
+  $("#panel-title").textContent =
+    {
+      search: "Search across the web",
+      settings: "Preferences",
+      reader: "Read aloud",
+      downloads: "Videos & downloads",
+      split: "Arrange your view",
+      groups: "Tabs & groups",
+      home: "Your home, your spaces",
+      speed: "Connection speed",
+      audio: "Tab audio",
+      bookmarks: "Saved pages",
+      zoom: "Page zoom",
+    }[name] || toolNames[name];
   const body = $("#panel-body");
   body.replaceChildren();
   animateIn($("#panel"));
-  if (name === "search") searchPanel(body);
+  if (name === "control") controlPanel(body);
+  else if (name === "network") networkPanel(body);
+  else if (name === "vault") vaultPanel(body);
+  else if (name === "qr") qrPanel(body);
+  else if (["history", "reading", "tabSearch"].includes(name))
+    libraryPanel(body, name);
+  else if (name === "notes") notesPanel(body);
+  else if (name === "search") searchPanel(body);
   else if (name === "settings") settingsPanel(body);
   else if (name === "split" || name === "groups") tabsPanel(body, name);
   else if (name === "home") homePanel(body);
@@ -972,6 +1013,28 @@ function audioPanel(body) {
   }
 }
 function bookmarksPanel(body) {
+  const filter = input("bookmarks-filter", "Find a bookmark…");
+  body.append(
+    filter,
+    button(
+      "Export bookmarks",
+      () => call("bookmarksExport").then((r) => r && toast(r)),
+      "external",
+    ),
+    button(
+      "Import bookmarks",
+      async () => {
+        if (await call("bookmarksImport")) showPanel("bookmarks");
+      },
+      "plus",
+    ),
+  );
+  filter.oninput = () => {
+    for (const row of body.querySelectorAll(".card"))
+      row.hidden = !row.textContent
+        .toLowerCase()
+        .includes(filter.value.toLowerCase());
+  };
   body.append(
     button(
       "Bookmark current page",
@@ -991,6 +1054,24 @@ function bookmarksPanel(body) {
     row.append(
       text,
       button("Open bookmark", () => call("bookmarkOpen", b.id), "external"),
+      button(
+        "Rename bookmark",
+        () => {
+          const field = input("title", "", b.title);
+          text.replaceChildren(field);
+          const save = button(
+            "Save title",
+            async () => {
+              await call("bookmarkRename", { id: b.id, title: field.value });
+              showPanel("bookmarks");
+            },
+            "save",
+          );
+          text.append(save);
+          field.focus();
+        },
+        "edit",
+      ),
       button(
         "Remove bookmark",
         async () => {

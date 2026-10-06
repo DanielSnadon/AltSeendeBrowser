@@ -1,6 +1,6 @@
 # AltSeende Browser
 
-A minimal, English-language Chromium browser for research. **Version 0.3.1** uses Electron 44 with sandboxed web pages, bottom tabs and an eye identity.
+A minimal, English-language Chromium browser for research. **Version 0.4.0** uses Electron 44 with sandboxed web pages, bottom tabs and an eye identity.
 
 ![Home](docs/preview.png)
 
@@ -9,19 +9,29 @@ A minimal, English-language Chromium browser for research. **Version 0.3.1** use
 Open [Releases](https://github.com/DanielSnadon/AltSeendeBrowser/releases) and select a Linux x64 download. The repository is private, so sign into an account with access.
 
 - **Fedora RPM:** open the `.rpm` with the software installer. After installing, launch **AltSeende Browser** from the application menu.
-- **AppImage:** enable executable permission in file properties and run it. If FUSE 2 is missing, use `./AltSeende-0.3.1-x86_64.AppImage --appimage-extract-and-run`.
+- **AppImage:** enable executable permission in file properties and run it. If FUSE 2 is missing, use `./AltSeende-0.4.0-x86_64.AppImage --appimage-extract-and-run`.
 - **Portable archive:** extract the full `.tar.gz` and run `altseende-browser` inside. Keep the bundled files together.
 
 Node.js is not required for these downloads. These packages target Linux x64. Windows packaging is configured (`npm run dist:win`) but is not part of the Linux release and has not been tested on Windows.
 
-## What changed in 0.3
+## What changed in 0.4
 
-- Brighter graphite/cyan interface, detailed gradients, restrained grid accents and icon-only browser controls.
-- Smooth interaction and entrance animations. Settings can disable motion; the OS reduced-motion preference is respected.
-- The primary advanced-search action always opens **all six engines in one 3 × 2 window**: Google, Yandex, DuckDuckGo, Bing, Brave and Yahoo. A secondary checkmark action searches only the checked engines. The simple home comparison remains a three-engine shortcut.
-- A separate volume slider and mute for every tab, reachable from the tab's speaker icon or toolbar mixer. Volume/mute survive restore for regular tabs. The slider scales HTML audio/video players, including dynamically added players and iframe players. Web Audio synthesis is not amplitude-scaled; native tab mute silences it along with all other tab audio.
-- New configurable toolbar tools: audio mixer, bookmarks, find on page (Ctrl+F), page zoom, fullscreen (F11), PDF export, print and copy URL. Settings still exposes tools hidden from the toolbar.
-- Existing custom accents and toolbar choices migrate without resetting them; the old default accent changes to cyan.
+- Monochrome interface, subtle motion, icon controls and compact side sheets. Opening preferences leaves the page visible beside them.
+- The top split icon opens a quick native menu: choose 2–6 pages, 1–3 columns or individual tabs without opening preferences. Advanced multi-search still opens all six engines in a 3 × 2 layout.
+- **Control center** (sliders at the far right): searchable tools, instructions and direct launch buttons. Preferences remains available there. Toolbar tools can be selected and reordered.
+- **VPN & connection:** bundled sing-box 1.14.2 core. Import NekoBox/nekoray-compatible VLESS (including REALITY), VMess, Trojan, Shadowsocks, SOCKS5 and HTTP(S) profile links. TCP, WebSocket and gRPC transports are supported; unsupported transports/plugins are rejected. Other NekoBox configurations can be used through its local SOCKS5 endpoint.
+- Connections cover browser page traffic and downloads, not the whole computer. Bring your own server/profile; there is no included server, subscription service or guaranteed access to blocked websites. The local tunnel running is not proof that the remote server works. No automatic direct fallback: a core crash blocks new page requests. After restart, previously protected browsing stays blocked until you unlock/reconnect or explicitly disconnect. Server hostname lookup and maintenance downloads (filter updates) can use the system connection. Portal sign-in intentionally bypasses the tunnel. This is not a system-wide VPN or a complete anonymity guarantee.
+- **Passwords:** manual local entries with exact-origin, user-triggered fill (no form submission), strong password generation, delete and temporary clipboard copy. AES-256-GCM encryption with a scrypt-derived master key; passwords and connection profiles share a vault. Auto-lock after five minutes of vault inactivity. No silent credential harvesting, cloud sync, iframe fill, password recovery or completed security audit. Remember the master password; copy expires after 30 seconds only if clipboard contents are unchanged (clipboard history managers can retain it).
+- **Network sign-in:** isolated temporary window for captive Wi-Fi portals using an explicit HTTP connectivity probe. It uses a direct connection and permits HTTP redirects, while normal browsing keeps its privacy settings. Connect to Wi-Fi through the OS first; close sign-in when finished, then reconnect the tunnel.
+- **Page QR:** generated offline from the active address; save as PNG.
+- **Dark websites:** local Dark Reader processing, remembered per origin. Complex pages may need the toggle turned off; external image analysis is disabled.
+- **Bookmarks:** search, rename, open, remove, import and export AltSeende JSON.
+
+Ten additional tools: local history, reopen closed tab (Ctrl+Shift+T), duplicate tab, pin tab, find a tab, read-later list, page notes, clean-link copy, bookmark import and bookmark export. History excludes private tabs and keeps 1,000 entries. Reopen remembers the last 25 closed regular tabs for this run. Reading lists store links, not offline page copies. Notes are local plaintext and unavailable on private tabs.
+
+Regular tab volume, mute and pin state survive restart. HTML audio/video players, including iframe players, follow per-tab volume; Web Audio synthesis follows native mute only.
+
+![Control center beside a page](docs/control-center.png)
 
 ### Remove or update on Fedora
 
@@ -36,7 +46,7 @@ This removes the installed application; profile data, source code and downloaded
 To install or update from a downloaded RPM in the current directory:
 
 ```sh
-sudo dnf install ./AltSeende-0.3.1-x86_64.rpm
+sudo dnf install ./AltSeende-0.4.0-x86_64.rpm
 ```
 
 No need to uninstall before upgrading.
@@ -66,7 +76,7 @@ Experimental unpacked Chrome extensions can be loaded in Settings. Electron supp
 
 A blocker cannot guarantee every ad disappears. This implementation supports network and CSS filtering; scriptlets and extended procedural selectors are not implemented. Filter updates are manual and can break some pages; disable the blocker for troubleshooting.
 
-This is not an anonymity browser. Sites see your IP. Permissions for camera, microphone, geolocation and notifications remain denied by default; HTTP is upgraded to HTTPS unless disabled. DNT/GPC are signals, not enforcement. Private tabs share an in-memory session until app exit; downloaded files remain on disk. There is no automatic updater, Safe Browsing service, password manager or completed security audit.
+This is not an anonymity browser. Without a tunnel, sites see your normal public IP; with a working tunnel, they normally see the server IP. Permissions for camera, microphone, geolocation and notifications remain denied by default; HTTP is upgraded to HTTPS unless disabled. DNT/GPC are signals, not enforcement. Private tabs share an in-memory session until app exit; downloaded files remain on disk. There is no automatic updater, Safe Browsing service or completed security audit. The tunnel and encrypted password vault have the boundaries described above.
 
 ## Develop and verify
 
@@ -75,6 +85,7 @@ Requires Node.js **22.12+** (Node 24 recommended) and a graphical Linux desktop.
 ```sh
 npm ci
 npm run filters
+npm run tunnel
 npm start
 npm test
 npm run smoke
@@ -98,3 +109,11 @@ The GitHub Actions workflow builds downloadable Linux installers after code push
 - `src/core.cjs`: query construction and URL policy.
 
 Settings and session data live in Electron's `userData` directory for AltSeende Browser. Existing 0.1 preferences are preserved. Filter source/licensing details are in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Connection and vault data
+
+Linux profile data lives in `~/.config/AltSeende Browser/`. `vault.json` is encrypted; settings, notes, bookmarks and history are ordinary local JSON. Back up the vault file together with your master password stored separately. Uninstalling the RPM does not erase this profile.
+
+The tunnel binary is downloaded from a pinned upstream release with SHA-256 validation during the build. The installer ships its license and corresponding source archive in `resources/tunnel/`. Profile configuration is passed over stdin and is not written to a plaintext config file. Connection profiles are not exposed in renderer state.
+
+Verification includes unit tests, Chromium integration tests with real local pages, exact-origin password fill, a real local HTTP proxy reached through the bundled tunnel, tunnel-crash blocking, and a full-process restart with a locked vault and protected routing. External VPN servers and real captive networks require testing with your own provider/network. Documentation screenshots combine native page captures with the shell capture because Electron captures these surfaces separately.
