@@ -26,6 +26,8 @@ const defaults = {
   splitSearch: true,
   homeTitle: "Start here.",
   showPresets: true,
+  gestures: true,
+  passwordSuggestions: true,
   tools: [
     "search",
     "split",

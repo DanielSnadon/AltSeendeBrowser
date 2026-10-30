@@ -1,4 +1,45 @@
 const guides = {
+  palette: [
+    "Command palette",
+    "Ctrl+K opens a searchable launcher. Type a tool name, use arrows, and press Enter. Escape closes it.",
+  ],
+  nextTab: [
+    "Keyboard tabs",
+    "Ctrl+Tab selects the next tab; Ctrl+Shift+Tab selects the previous tab. Ctrl+1–8 selects a position, Ctrl+9 selects the last tab. Order matches the bottom strip.",
+  ],
+  closeOthers: [
+    "Close other tabs",
+    "Keep the active tab and pinned tabs; close the rest. Unsaved forms in closed tabs are not restored.",
+  ],
+  closeRight: [
+    "Close tabs to the right",
+    "Close unpinned tabs after the current tab in the bottom strip.",
+  ],
+  deduplicate: [
+    "Remove duplicates",
+    "Keep the current tab and one copy of each exact URL. Pinned tabs and separate private/regular sessions are preserved.",
+  ],
+  soloAudio: [
+    "Mute other tabs",
+    "Mute all other tabs. Run again to restore their previous mute settings.",
+  ],
+  reloadAll: [
+    "Reload all tabs",
+    "Reload every open page, including private tabs. This can reset unsaved forms.",
+  ],
+  saveOffline: [
+    "Save offline page",
+    "Save the current page as a single MHTML archive. Open it with a browser that supports MHTML. Interactive/server-dependent content may not work offline.",
+  ],
+  siteInfo: [
+    "Site controls",
+    "Click the shield beside the address or open this tool to inspect the origin, connection and privacy state. Clear site cookies/storage only after confirmation. Shared parent-domain cookies can also sign out related subdomains.",
+  ],
+  bookmarkAll: [
+    "Bookmark all tabs",
+    "Save all open regular page addresses, skipping duplicates and private tabs.",
+  ],
+
   fullscreen: [
     "Fullscreen",
     "Toggle with F11 or this tool. Press F11 again to return.",
@@ -25,7 +66,7 @@ const guides = {
   ],
   vault: [
     "Passwords",
-    "Create a master password of at least 12 characters. Credentials and tunnel profiles are encrypted locally with AES-256-GCM and scrypt. Unlock lasts five minutes without vault activity. Add entries manually. Fill only works on the exact saved origin and never submits the form. Passwords inside iframes are not filled. There is no cloud sync or master-password recovery; keep a backup of your encrypted vault.",
+    "Create a master password of at least 12 characters. Credentials and tunnel profiles are encrypted locally with AES-256-GCM and scrypt. Unlock lasts five minutes without vault activity. Add entries manually; when you focus a sign-in field, matching accounts appear below the address bar. If locked, choose Unlock passwords first. Suggestions are off in private tabs. Fill only works on the exact saved origin and never submits the form. Passwords inside iframes are not filled. There is no cloud sync or master-password recovery; keep a backup of your encrypted vault.",
   ],
   portal: [
     "Network sign-in",
@@ -266,7 +307,10 @@ async function vaultPanel(body) {
         return toast("Passwords do not match.");
       const r = await call("vaultUnlock", pw.value);
       pw.value = "";
-      if (r) showPanel("vault");
+      if (r) {
+        if (state.passwordOffer) hidePanel();
+        else showPanel("vault");
+      }
     };
     body.append(
       note(
@@ -475,4 +519,139 @@ function notesPanel(body) {
       toast("Note saved.");
   };
   body.append(form);
+}
+
+function palettePanel(body) {
+  const search = input("command", "Type a command…"),
+    list = el("div");
+  search.setAttribute("aria-label", "Search commands");
+  const draw = () => {
+    list.replaceChildren();
+    for (const [key, title] of Object.entries({
+      ...toolNames,
+      settings: "Preferences",
+    })) {
+      if (
+        key === "palette" ||
+        !title.toLowerCase().includes(search.value.toLowerCase())
+      )
+        continue;
+      const b = button(
+        title,
+        async () => {
+          await hidePanel();
+          if (key === "settings") showPanel("settings");
+          else actionTool(key);
+        },
+        key,
+        "command-row",
+      );
+      b.append(el("span", title));
+      list.append(b);
+    }
+  };
+  search.oninput = draw;
+  search.onkeydown = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      list.querySelector("button")?.focus();
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      list.querySelector("button")?.click();
+    }
+  };
+  list.onkeydown = (e) => {
+    const buttons = [...list.querySelectorAll("button")],
+      i = buttons.indexOf(document.activeElement);
+    if (["ArrowDown", "ArrowUp"].includes(e.key)) {
+      e.preventDefault();
+      buttons[
+        (i + (e.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length
+      ]?.focus();
+    }
+  };
+  body.append(search, list);
+  draw();
+  search.focus();
+}
+async function sitePanel(body) {
+  const info = await call("siteInfo");
+  if (!info) return;
+  body.append(el("h3", info.host), note(info.origin));
+  for (const [k, v] of Object.entries({
+    Connection: info.encrypted ? "HTTPS" : "HTTP — not encrypted",
+    Session: info.private ? "Private" : "Regular",
+    "Ad blocker": info.blocker ? "On" : "Off",
+    Tunnel: info.tunnel,
+    Zoom: info.zoom + "%",
+  })) {
+    const row = el("div", undefined, "site-row");
+    row.append(el("span", k), el("strong", v));
+    body.append(row);
+  }
+  body.append(
+    note(
+      "HTTPS describes transport encryption, not whether a site is trustworthy.",
+    ),
+    button(
+      "Clear cookies and storage for this site",
+      async () => {
+        const r = await call("clearSite", info.origin);
+        if (r) toast(r);
+      },
+      "trash",
+    ),
+  );
+}
+let credentialKey = "";
+function renderCredentials(offer) {
+  const key = JSON.stringify(offer);
+  if (key === credentialKey) return;
+  credentialKey = key;
+  const bar = $("#credential-bar");
+  bar.replaceChildren();
+  bar.hidden = !offer;
+  if (!offer) return;
+  const origin = el("span", offer.origin, "credential-origin");
+  origin.title = offer.origin;
+  bar.append(icon("vault"), origin);
+  if (offer.locked) {
+    const b = button(
+      "Unlock saved passwords",
+      () => showPanel("vault"),
+      "vault",
+      "credential-choice",
+    );
+    b.append(el("span", "Unlock passwords"));
+    bar.append(b);
+  } else if (!offer.entries.length)
+    bar.append(el("span", "No saved passwords for this site."));
+  else
+    for (const account of offer.entries) {
+      const b = button(
+        "Fill " + (account.username || "Saved account"),
+        async () => {
+          const result = await call("passwordChoose", {
+            id: account.id,
+            token: offer.token,
+          });
+          if (result) {
+            await hidePanel();
+            toast(result);
+          }
+        },
+        "check",
+        "credential-choice",
+      );
+      b.append(el("span", account.username || "Saved account"));
+      bar.append(b);
+    }
+  bar.append(
+    button(
+      "Dismiss password suggestions",
+      () => call("passwordDismiss"),
+      "close",
+    ),
+  );
 }

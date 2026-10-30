@@ -68,3 +68,41 @@ test("imports all six protocols and REALITY; rejects unknown transports and inse
   assert.equal(config.outbounds.length, 1);
   assert.equal(config.route.final, "tunnel");
 });
+
+const { safeOrigin } = require("../src/page-tools.cjs");
+test("password origins require HTTPS or an explicit loopback HTTP origin", () => {
+  assert.equal(safeOrigin("https://example.com/login"), "https://example.com");
+  assert.equal(
+    safeOrigin("http://127.0.0.1:8080/login"),
+    "http://127.0.0.1:8080",
+  );
+  for (const url of [
+    "http://example.com",
+    "ftp://localhost",
+    "file:///tmp/login",
+    "https://",
+    "http://127.0.0.1.attacker.test",
+  ])
+    assert.equal(safeOrigin(url), null);
+});
+test("suggestion metadata cannot expose secrets or extend vault inactivity timeout", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "alt-vault-meta-"));
+  const v = new Vault(path.join(dir, "vault.json"));
+  try {
+    await v.unlock("metadata master password");
+    v.put("passwords", {
+      origin: "https://example.com",
+      username: "demo",
+      password: "do-not-publish",
+    });
+    const timer = v.timer;
+    const meta = v.metadata("passwords");
+    assert.equal(meta[0].password, undefined);
+    assert.equal(v.timer, timer);
+    v.lock();
+    assert.deepEqual(v.metadata("passwords"), []);
+  } finally {
+    v.lock();
+    fs.rmSync(dir, { recursive: true });
+  }
+});

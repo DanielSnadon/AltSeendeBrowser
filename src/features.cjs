@@ -63,7 +63,11 @@ module.exports = function createFeatures(c) {
       ])
       .catch(() => {});
   }
+  const pageTools = require("./page-tools.cjs")(c, vault);
+  const workflows = require("./workflow-tools.cjs")(c);
   const actions = {
+    ...pageTools.actions,
+    ...workflows,
     quickSplit: async () => {
       const state = c.state();
       const open = state.tabs.filter((t) => t.url);
@@ -244,7 +248,11 @@ module.exports = function createFeatures(c) {
       c.save();
     }),
     vaultStatus: async () => vault.status(),
-    vaultUnlock: async (p) => vault.unlock(p),
+    vaultUnlock: async (p) => {
+      const result = await vault.unlock(p);
+      pageTools.refresh();
+      return result;
+    },
     vaultLock: async () => {
       vault.lock();
       return vault.status();
@@ -252,16 +260,18 @@ module.exports = function createFeatures(c) {
     vaultList: async () => vault.list("passwords"),
     vaultSave: async (d) => {
       const u = new URL(d.origin);
-      if (
-        u.protocol !== "https:" &&
-        !["localhost", "127.0.0.1"].includes(u.hostname)
-      )
+      if (!require("./page-tools.cjs").safeOrigin(d.origin))
         throw Error("Save passwords for HTTPS sites only.");
       if (!d.password || String(d.password).length > 2048)
         throw Error("Enter a password (up to 2048 characters).");
+      const username = String(d.username || "").slice(0, 300);
+      const existing = vault
+        .list("passwords")
+        .find((x) => x.origin === u.origin && x.username === username);
       vault.put("passwords", {
+        id: existing?.id,
         origin: u.origin,
-        username: String(d.username || "").slice(0, 300),
+        username,
         password: String(d.password),
       });
       return true;
@@ -281,18 +291,7 @@ module.exports = function createFeatures(c) {
     },
     passwordGenerate: async () => crypto.randomBytes(24).toString("base64url"),
     vaultFill: async (id) => {
-      const t = active();
-      const entry = vault.get("passwords", id);
-      const origin = new URL(t.view.webContents.getURL()).origin;
-      if (origin !== entry.origin)
-        throw Error("Open the exact saved site before filling.");
-      const ok = await page().executeJavaScriptInIsolatedWorld(998, [
-        {
-          code: `(()=>{if(location.origin!==${JSON.stringify(origin)})return false;const password=[...document.querySelectorAll('input[type=password]')].find(x=>x.getClientRects().length&&!x.disabled);if(!password)return false;const root=password.form||document;const user=[...root.querySelectorAll('input')].find(x=>['text','email'].includes(x.type)&&x.getClientRects().length&&!x.disabled);const set=(e,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,v);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};if(user)set(user,${JSON.stringify(entry.username)});set(password,${JSON.stringify(entry.password)});return true;})()`,
-        },
-      ]);
-      if (!ok) throw Error("No visible password form found in the main page.");
-      return "Filled. Review the form and sign in yourself.";
+      return pageTools.fill(active(), vault.get("passwords", id));
     },
     networkProfiles: async () => vault.list("profiles"),
     networkImport: async (link) => {
@@ -361,6 +360,7 @@ module.exports = function createFeatures(c) {
     vault,
     tunnel,
     applyDark,
+    pageTools,
     historyVisit(t) {
       if (t.private || !/^https?:/.test(t.url)) return;
       history = history.filter((x) => x.url !== t.url);
@@ -382,11 +382,13 @@ module.exports = function createFeatures(c) {
       }
     },
     status: () => ({
+      passwordOffer: pageTools.describe(),
       network: tunnel.status,
       vault: vault.status(),
       closedCount: closed.length,
     }),
     stop() {
+      pageTools.stop();
       vault.lock();
       tunnel.stop();
     },

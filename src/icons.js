@@ -1,4 +1,15 @@
 const iconPaths = {
+  palette: "M4 5h16v14H4zM7 9l3 3-3 3M13 15h4",
+  nextTab: "M3 5h18v14H3zM10 9l4 3-4 3",
+  closeOthers: "M3 5h12v14H3zM18 8l4 8M22 8l-4 8",
+  closeRight: "M3 5h18v14H3zM9 5v14M13 9l5 6M18 9l-5 6",
+  deduplicate: "M3 3h12v12H3zM9 9h12v12H9zM12 12l6 6M18 12l-6 6",
+  soloAudio: "M3 9h4l5-4v14l-5-4H3zM17 9l5 6M22 9l-5 6",
+  reloadAll: "M3 8a9 9 0 1 1 0 8M3 3v5h5M8 12h8M8 15h8",
+  saveOffline: "M5 3h10l4 4v14H5zM12 8v8M9 13l3 3 3-3",
+  siteInfo: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7v1",
+  bookmarkAll: "M6 5h14v16l-7-4-7 4zM3 16V2h14",
+
   control: "M4 5h16M4 12h16M4 19h16M8 3v4M16 10v4M10 17v4",
   network:
     "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M3 12h18M12 3c-5 5-5 13 0 18 5-5 5-13 0-18",

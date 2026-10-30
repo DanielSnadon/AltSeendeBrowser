@@ -10,6 +10,16 @@ let state,
   seenTabs = new Set(),
   paneKey = "";
 const toolNames = {
+  palette: "Command palette",
+  nextTab: "Next tab",
+  closeOthers: "Close other tabs",
+  closeRight: "Close tabs to the right",
+  deduplicate: "Remove duplicate tabs",
+  soloAudio: "Mute other tabs / restore",
+  reloadAll: "Reload all tabs",
+  saveOffline: "Save offline page",
+  siteInfo: "Site controls",
+  bookmarkAll: "Bookmark all tabs",
   control: "Control center",
   network: "VPN & connection",
   vault: "Passwords",
@@ -111,7 +121,22 @@ function submit(form, title = "Save", name = "save") {
 function actionTool(name) {
   if (name === "split") return call("quickSplit");
   if (
-    ["dark", "portal", "reopen", "duplicate", "pin", "cleanLink"].includes(name)
+    [
+      "dark",
+      "portal",
+      "reopen",
+      "duplicate",
+      "pin",
+      "cleanLink",
+      "nextTab",
+      "closeOthers",
+      "closeRight",
+      "deduplicate",
+      "soloAudio",
+      "reloadAll",
+      "saveOffline",
+      "bookmarkAll",
+    ].includes(name)
   )
     return call(name).then((r) => typeof r === "string" && toast(r));
   if (["screenshot", "pdf", "print", "copyLink"].includes(name))
@@ -124,6 +149,7 @@ function actionTool(name) {
 }
 function render(s) {
   state = s;
+  renderCredentials(s.passwordOffer);
   document.body.classList.toggle("no-motion", !s.settings.motion);
   document.body.classList.toggle("has-panel", !!s.overlay);
   if (!s.overlay && panel) {
@@ -141,6 +167,12 @@ function render(s) {
   renderedActive = s.active;
   renderedURL = t?.url;
   $("#address").title = t?.url || "Page address or search";
+  $("#back").disabled = !t?.canGoBack;
+  $("#forward").disabled = !t?.canGoForward;
+  $("#home-query").placeholder =
+    (t?.private ? "Private search · " : "Search · ") + s.settings.engine;
+  $("#home-title").hidden =
+    !s.settings.homeTitle || s.settings.homeTitle === "Start here.";
   $("#home").hidden = !!t?.url;
   $("#home-status").textContent = t?.private
     ? "Private session · these tabs will not be restored."
@@ -314,6 +346,7 @@ window.alt.onShortcut((a) => {
     $("#address").focus();
     $("#address").select();
   } else if (a === "find") openFind();
+  else if (a === "palette") showPanel("palette");
   else showPanel("search");
 });
 window.alt.onReader(async (t) => {
@@ -351,7 +384,9 @@ async function showPanel(name) {
   const body = $("#panel-body");
   body.replaceChildren();
   animateIn($("#panel"));
-  if (name === "control") controlPanel(body);
+  if (name === "palette") palettePanel(body);
+  else if (name === "siteInfo") sitePanel(body);
+  else if (name === "control") controlPanel(body);
   else if (name === "network") networkPanel(body);
   else if (name === "vault") vaultPanel(body);
   else if (name === "qr") qrPanel(body);
@@ -571,6 +606,8 @@ function settingsPanel(body) {
   form.append(el("h3", "Appearance"), grid, el("h3", "Browsing"));
   for (const [k, text] of [
     ["motion", "Smooth interface animations"],
+    ["gestures", "Swipe horizontally to go back / forward"],
+    ["passwordSuggestions", "Suggest saved passwords on sign-in fields"],
     ["restoreSession", "Restore regular tabs and groups at startup"],
     ["splitSearch", "Show multi-search results side by side"],
     ["trackers", "Block ads and trackers"],
@@ -675,6 +712,8 @@ function settingsPanel(body) {
     const d = Object.fromEntries(new FormData(form));
     for (const k of [
       "motion",
+      "gestures",
+      "passwordSuggestions",
       "restoreSession",
       "splitSearch",
       "trackers",
@@ -1154,9 +1193,21 @@ for (const id of ["new-tab", "brand"])
     await hidePanel();
     await call("new");
   };
+$("#home-spaces-toggle").onclick = () => {
+  $("#home").classList.toggle("spaces-open");
+  $("#home-spaces-toggle").setAttribute(
+    "aria-expanded",
+    $("#home").classList.contains("spaces-open"),
+  );
+};
+$("#home-bookmarks").onclick = () => showPanel("bookmarks");
+$("#home-advanced").onclick = () => showPanel("search");
 $("#manage-tabs").onclick = () => showPanel("groups");
 $("#edit-home").onclick = () => showPanel("home");
-$("#blocker").onclick = () => showPanel("settings");
+$("#blocker").onclick = () =>
+  state.tabs.find((t) => t.id === state.active)?.url
+    ? showPanel("siteInfo")
+    : showPanel("settings");
 for (const a of ["back", "forward", "reload"])
   $("#" + a).onclick = () => call(a);
 $("#address").oninput = () => (addressDirty = true);

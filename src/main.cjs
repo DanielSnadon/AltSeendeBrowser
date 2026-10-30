@@ -19,7 +19,8 @@ const audioScript = require("./audio-script.cjs");
 const { snapshot, paneBounds } = require("./workspaces.cjs");
 app.setName("AltSeende Browser");
 app.setDesktopName("altseende-browser.desktop");
-const smoke = process.argv.includes("--smoke-test");
+const captureDocs = process.argv.includes("--capture-docs");
+const smoke = process.argv.includes("--smoke-test") || captureDocs;
 const restartPhase = process.argv
   .find((a) => a.startsWith("--restart-smoke="))
   ?.split("=")[1];
@@ -76,14 +77,17 @@ function persistSession() {
         : { tabs: [] },
     );
 }
+function offerHeight() {
+  return features?.pageTools.describe() ? 54 : 0;
+}
 function panes() {
   const [w, h] = win?.getContentSize() || [1400, 900];
   return paneBounds(
     split.filter((id) => tabs.has(id) && tabs.get(id).url),
     w - (overlay ? Math.min(520, Math.floor(w * 0.46)) + 20 : 0),
-    h,
+    h - offerHeight(),
     settings.splitColumns,
-  );
+  ).map((p) => ({ ...p, y: p.y + offerHeight() }));
 }
 function state() {
   return {
@@ -99,6 +103,8 @@ function state() {
       muted: t.muted,
       pinned: !!t.pinned,
       zoom: t.view.webContents.getZoomFactor(),
+      canGoBack: t.view.webContents.navigationHistory.canGoBack(),
+      canGoForward: t.view.webContents.navigationHistory.canGoForward(),
     })),
     active,
     overlay,
@@ -129,7 +135,8 @@ function layout() {
     width =
       fullWidth -
       (overlay ? Math.min(520, Math.floor(fullWidth * 0.46)) + 20 : 0),
-    grid = panes();
+    grid = panes(),
+    top = 58 + offerHeight();
   for (const t of tabs.values()) {
     const p = grid.find((p) => p.id === t.id);
     const visible = !!t.url && (split.length ? !!p : t.id === active);
@@ -142,7 +149,7 @@ function layout() {
             width: p.width,
             height: Math.max(0, p.height - 30),
           }
-        : { x: 0, y: 58, width, height: Math.max(0, height - 110) },
+        : { x: 0, y: top, width, height: Math.max(0, height - 52 - top) },
     );
   }
 }
@@ -227,6 +234,7 @@ function current() {
 }
 function activate(id, focus = false) {
   if (!tabs.has(id)) return;
+  if (active !== id) features?.pageTools.clear();
   active = id;
   overlay = false;
   if (!split.includes(id)) split = [];
@@ -237,6 +245,22 @@ function activate(id, focus = false) {
 function shortcut(wc) {
   wc.on("before-input-event", (e, i) => {
     if (i.type !== "keyDown") return;
+    if (i.control && !i.alt && !i.meta && i.key.toLowerCase() === "k") {
+      e.preventDefault();
+      win.webContents.focus();
+      win.webContents.send("shortcut", "palette");
+      return;
+    }
+    if (i.control && !i.alt && !i.meta && i.key === "Tab") {
+      e.preventDefault();
+      features?.actions.nextTab(i.shift);
+      return;
+    }
+    if (i.control && !i.shift && !i.alt && !i.meta && /^[1-9]$/.test(i.key)) {
+      e.preventDefault();
+      features?.actions.numberedTab(Number(i.key));
+      return;
+    }
     if (i.control && i.shift && i.key.toLowerCase() === "t") {
       e.preventDefault();
       features?.actions.reopen();
@@ -278,6 +302,7 @@ function shortcut(wc) {
   });
 }
 function newTab(url = "", priv = false, options = {}) {
+  if (!options.background) features?.pageTools.clear();
   const id = ++seq;
   const view = new WebContentsView({
     webPreferences: {
@@ -309,6 +334,9 @@ function newTab(url = "", priv = false, options = {}) {
   tabs.set(id, t);
   wc.setAudioMuted(t.muted || t.volume === 0);
   wc.on("did-frame-finish-load", () => applyVolume(t));
+  wc.on("did-start-navigation", (_e, _url, _inPlace, main) => {
+    if (main) features?.pageTools.clear(id);
+  });
   wc.on("did-finish-load", () => {
     features?.applyDark(t);
     features?.historyVisit(t);
@@ -408,6 +436,7 @@ function closeTab(id) {
   const t = tabs.get(id);
   if (!t) return;
   win.contentView.removeChildView(t.view);
+  features?.pageTools.clear(id);
   features?.closed(t);
   tabs.delete(id);
   split = split.filter((x) => x !== id);
@@ -755,6 +784,8 @@ async function command(action, data) {
         "splitSearch",
         "showPresets",
         "motion",
+        "gestures",
+        "passwordSuggestions",
       ])
         if (typeof data[k] === "boolean") next[k] = data[k];
       if (engines[data.engine]) next.engine = data.engine;
@@ -798,10 +829,24 @@ async function command(action, data) {
             "duplicate",
             "pin",
             "cleanLink",
+            "palette",
+            "nextTab",
+            "closeOthers",
+            "closeRight",
+            "deduplicate",
+            "soloAudio",
+            "reloadAll",
+            "saveOffline",
+            "siteInfo",
+            "bookmarkAll",
           ].includes(t),
         );
       if (data.shortcuts) {
         const vals = Object.values(data.shortcuts);
+        if (vals.some((v) => /^(control\+(k|f|shift\+t|[1-9]))$/i.test(v)))
+          throw Error(
+            "Ctrl+K, Ctrl+F, Ctrl+Shift+T and Ctrl+1–9 are reserved.",
+          );
         if (
           vals.length !== 5 ||
           new Set(vals).size !== 5 ||
@@ -817,6 +862,7 @@ async function command(action, data) {
       }
       const changedBlocking = next.trackers !== settings.trackers;
       settings = next;
+      features?.pageTools.updateOptions();
       save();
       persistSession();
       if (changedBlocking)
@@ -966,6 +1012,8 @@ app.whenReady().then(async () => {
     current,
     tabs,
     newTab,
+    closeTab,
+    applyVolume,
     setSplit,
     activate,
     layout,
@@ -1053,7 +1101,9 @@ app.whenReady().then(async () => {
       newTab,
       command,
     });
-  if (smoke)
+  if (captureDocs)
+    require("./docs-capture.cjs")({ app, win, newTab, tabs, command, state });
+  if (smoke && !captureDocs)
     require("./smoke.cjs")({
       app,
       win,

@@ -88,12 +88,17 @@
         aria-label="Control center"
       ></button>
     </nav>
+    <aside
+      id="credential-bar"
+      aria-label="Saved password suggestions"
+      hidden
+    ></aside>
     <main id="home">
       <div class="home-wordmark">
-        <img src="../assets/eye.svg" alt="" /><span>ALTSEENDE</span>
+        <img src="../assets/eye.svg" alt="AltSeende" />
       </div>
       <h1 id="home-title">Start here.</h1>
-      <p class="intro">One question. Every perspective.</p>
+
       <form id="home-search">
         <input
           id="home-query"
@@ -113,6 +118,27 @@
           DuckDuckGo</label
         >
       </div>
+      <div class="home-actions">
+        <button
+          id="home-spaces-toggle"
+          data-icon="groups"
+          title="Spaces"
+          aria-label="Spaces"
+          aria-expanded="false"
+        ></button>
+        <button
+          id="home-bookmarks"
+          data-icon="bookmarks"
+          title="Bookmarks"
+          aria-label="Bookmarks"
+        ></button>
+        <button
+          id="home-advanced"
+          data-icon="search"
+          title="Search in six engines"
+          aria-label="Search in six engines"
+        ></button>
+      </div>
       <section id="presets-section">
         <div class="section-title">
           <h2>Your spaces</h2>
@@ -127,7 +153,7 @@
       </section>
       <div class="home-footer">
         <span id="home-status">A quieter corner of the web.</span
-        ><span>0.4 / CHROMIUM</span>
+        ><span>0.5 / CHROMIUM</span>
       </div>
     </main>
     <div id="pane-headers"></div>

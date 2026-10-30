@@ -33,9 +33,7 @@ module.exports = async ({
     app.exit(1);
   }, 120000);
   try {
-    const outputDir = app.isPackaged
-      ? app.getPath("userData")
-      : path.join(__dirname, "../docs");
+    const outputDir = app.getPath("userData");
     fs.mkdirSync(outputDir, { recursive: true });
     await delay(650);
     fs.writeFileSync(
@@ -382,6 +380,16 @@ module.exports = async ({
       state,
       features,
       server,
+    });
+    await require("./workflow-smoke.cjs")({
+      app,
+      win,
+      newTab,
+      tabs,
+      current,
+      command,
+      state,
+      features,
     });
     await assert.rejects(() => command("navigate", "file:///etc/passwd"));
     console.log(

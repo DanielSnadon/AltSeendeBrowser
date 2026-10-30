@@ -206,9 +206,7 @@ module.exports = async ({
   await assert.rejects(() => command("vaultList"), /Unlock/);
   await win.webContents.executeJavaScript("showPanel('control')");
   await delay(300);
-  const output = app.isPackaged
-    ? app.getPath("userData")
-    : path.join(__dirname, "../docs");
+  const output = app.getPath("userData");
   const base = (await win.webContents.capturePage()).toDataURL(),
     page = (await t.view.webContents.capturePage()).toDataURL(),
     bounds = t.view.getBounds();

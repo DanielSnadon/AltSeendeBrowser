@@ -94,6 +94,10 @@ class Vault {
     this.key?.fill(0);
     this.key = null;
     this.data = null;
+    this.onLock?.();
+  }
+  metadata(kind) {
+    return (this.data?.[kind] || []).map(({ password, outbound, ...x }) => x);
   }
   list(kind) {
     return this.require()[kind].map(({ password, outbound, ...x }) => x);

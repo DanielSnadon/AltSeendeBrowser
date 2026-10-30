@@ -15,6 +15,8 @@ module.exports = async ({ phase, app, state, newTab, command }) => {
       await command("settings", {
         tools: ["downloads", "screenshot"],
         homeTitle: "Restored home",
+        gestures: false,
+        passwordSuggestions: false,
       });
       await command("volume", { id: a.id, volume: 0.3, muted: true });
       await command("volume", { id: b.id, volume: 0.7 });
@@ -51,6 +53,8 @@ module.exports = async ({ phase, app, state, newTab, command }) => {
       assert.ok(s.settings.groups.some((g) => g.name === "Restart group"));
       assert.deepEqual(s.settings.tools, ["downloads", "screenshot"]);
       assert.equal(s.settings.homeTitle, "Restored home");
+      assert.equal(s.settings.gestures, false);
+      assert.equal(s.settings.passwordSuggestions, false);
       assert.equal(
         s.tabs.find((t) => t.url.endsWith("/restore-a")).volume,
         0.3,
