@@ -25,13 +25,6 @@ jobs:
       - run: npm run filters
       - run: npm test
       - run: npx electron-builder --linux AppImage tar.gz --publish never && node scripts/build-rpm.cjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AltSeende-Linux
-          path: |
-            dist/installers/*.AppImage
-            dist/installers/*.rpm
-            dist/installers/*.tar.gz
       - name: Publish versioned installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,7 +33,7 @@ jobs:
           version=$(node -p "require('./package.json').version")
           tag="v${version}"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release already exists; new builds are available as workflow artifacts."
+            echo "Release already exists; published installers are kept unchanged."
           else
             gh release create "$tag" --target "$GITHUB_SHA" --title "AltSeende Browser ${version}" --notes-file RELEASE_NOTES.md dist/installers/*.AppImage dist/installers/*.rpm dist/installers/*.tar.gz
           fi

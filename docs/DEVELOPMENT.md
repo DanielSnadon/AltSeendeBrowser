@@ -29,7 +29,7 @@ npm run dist
 
 Artifacts appear in `dist/installers/`: RPM, AppImage and a portable tar archive. Fedora packaging uses the host `rpmbuild`. The tunnel download is pinned and hash-verified; its license and upstream source archive ship with the executable. Windows packaging remains experimental and has not been validated; the bundled tunnel target is Linux x64.
 
-GitHub Actions creates installers and a versioned release after code changes reach `main`. Existing versioned release assets are not overwritten. Documentation-only changes do not start a new build.
+GitHub Actions creates installers and a versioned release after code changes reach `main`. Existing versioned release assets are not overwritten. Installers are uploaded directly to Releases, without duplicating large files in Actions artifact storage. Documentation-only changes do not start a new build.
 
 ## Documentation screenshots
 
